@@ -11,6 +11,14 @@ DEFAULT_CONFIG = {
         'password': 'dhcctest',
         'database': 'dhcc'
     },
+    'data_warehouse': {
+        'driver': 'InterSystems IRIS',
+        'server': '172.20.16.28',
+        'port': 51773,
+        'namespace': 'MDR',
+        'user': '_system',
+        'password': ''
+    },
     'paths': {
         'output_dir': r'D:\WorkSpace\东华住院工作量查询\dist',
         'xls_dir': r'D:\WorkSpace\东华住院工作量查询\dist\xls',
@@ -37,6 +45,7 @@ DEFAULT_CONFIG = {
 
 # 全局变量
 DB_CONFIG = {}
+DATA_WAREHOUSE_CONFIG = {}
 OUTPUT_DIR = ''
 XLS_DIR = ''
 PDF_DIR = ''
@@ -55,7 +64,7 @@ def get_config_file():
 
 def load_config():
     """加载配置文件"""
-    global DB_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
+    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     config_file = get_config_file()
     
     # 兼容旧版INI配置
@@ -97,6 +106,7 @@ def load_config():
                 config = json.load(f)
             
             DB_CONFIG = config.get('database', DEFAULT_CONFIG['database'])
+            DATA_WAREHOUSE_CONFIG = config.get('data_warehouse', DEFAULT_CONFIG['data_warehouse'])
             paths = config.get('paths', DEFAULT_CONFIG['paths'])
             OUTPUT_DIR = paths.get('output_dir', DEFAULT_CONFIG['paths']['output_dir'])
             XLS_DIR = paths.get('xls_dir', DEFAULT_CONFIG['paths']['xls_dir'])
@@ -112,8 +122,9 @@ def load_config():
 
 def init_db_config():
     """初始化数据库配置"""
-    global DB_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
+    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     DB_CONFIG = DEFAULT_CONFIG['database']
+    DATA_WAREHOUSE_CONFIG = DEFAULT_CONFIG['data_warehouse']
     OUTPUT_DIR = DEFAULT_CONFIG['paths']['output_dir']
     XLS_DIR = DEFAULT_CONFIG['paths']['xls_dir']
     PDF_DIR = DEFAULT_CONFIG['paths']['pdf_dir']
@@ -123,7 +134,7 @@ def init_db_config():
 
 def save_config_to_file(server, port, user, password, database, output_dir, xls_dir='', pdf_dir='', clinic_data_dir='', clinic_reports=None):
     """保存配置文件到JSON格式"""
-    global DB_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
+    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     config_file = get_config_file()
 
     try:
@@ -144,6 +155,7 @@ def save_config_to_file(server, port, user, password, database, output_dir, xls_
                 'password': password,
                 'database': database
             },
+            'data_warehouse': DATA_WAREHOUSE_CONFIG or DEFAULT_CONFIG['data_warehouse'],
             'paths': {
                 'output_dir': output_dir,
                 'xls_dir': xls_dir,
@@ -159,6 +171,7 @@ def save_config_to_file(server, port, user, password, database, output_dir, xls_
             json.dump(config, f, ensure_ascii=False, indent=4)
 
         DB_CONFIG = config['database']
+        DATA_WAREHOUSE_CONFIG = config['data_warehouse']
         OUTPUT_DIR = output_dir
         XLS_DIR = xls_dir
         PDF_DIR = pdf_dir
@@ -173,6 +186,11 @@ def save_config_to_file(server, port, user, password, database, output_dir, xls_
 def get_db_config():
     """获取数据库配置"""
     return DB_CONFIG
+
+
+def get_data_warehouse_config():
+    """获取东华数据仓库配置"""
+    return DATA_WAREHOUSE_CONFIG
 
 
 def get_output_dir():

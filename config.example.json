@@ -6,6 +6,14 @@
         "password": "your_database_password",
         "database": "your_database_name"
     },
+    "data_warehouse": {
+        "driver": "InterSystems IRIS",
+        "server": "172.20.16.28",
+        "port": 51773,
+        "namespace": "MDR",
+        "user": "your_data_warehouse_user",
+        "password": "your_data_warehouse_password"
+    },
     "paths": {
         "output_dir": "D:\\WorkSpace\\东华住院工作量查询\\dist",
         "xls_dir": "D:\\WorkSpace\\东华住院工作量查询\\dist\\xls",
