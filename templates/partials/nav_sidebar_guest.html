@@ -1,0 +1,32 @@
+{# 共用侧边栏导航（未登录 / 首页访客态）。使用方式：
+   {% include 'partials/nav_sidebar_guest.html' %}
+   与 partials/nav_sidebar.html（登录后）是两套不同的菜单，访客态所有项都指向登录/注册。 #}
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1>东华系统</h1>
+        <p>工作量查询</p>
+    </div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" href="/login">
+            <span class="icon">🔍</span>
+            <span class="text">住院查询</span>
+        </a>
+        <a class="nav-item" href="/login">
+            <span class="icon">🏥</span>
+            <span class="text">门诊查询</span>
+        </a>
+        <a class="nav-item" href="/users">
+            <span class="icon">👥</span>
+            <span class="text">用户管理</span>
+        </a>
+        <a class="nav-item" href="/history">
+            <span class="icon">📋</span>
+            <span class="text">历史记录</span>
+        </a>
+        <a class="nav-item" href="/config">
+            <span class="icon">⚙️</span>
+            <span class="text">参数配置</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">v{{ version }}</div>
+</aside>

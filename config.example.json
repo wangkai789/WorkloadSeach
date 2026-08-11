@@ -1,0 +1,30 @@
+{
+    "database": {
+        "server": "127.0.0.1",
+        "port": 1433,
+        "user": "your_database_user",
+        "password": "your_database_password",
+        "database": "your_database_name"
+    },
+    "paths": {
+        "output_dir": "D:\\WorkSpace\\东华住院工作量查询\\dist",
+        "xls_dir": "D:\\WorkSpace\\东华住院工作量查询\\dist\\xls",
+        "pdf_dir": "D:\\WorkSpace\\东华住院工作量查询\\dist\\pdf",
+        "clinic_data_dir": "D:\\WorkSpace\\东华住院工作量查询\\dist\\data"
+    },
+    "clinic": {
+        "clinic_reports": [
+            "2020医生组出入院统计报表.xlsx",
+            "2021医生组出入院统计报表.xlsx",
+            "2022医生组出入院统计报表.xlsx",
+            "2023医生组出入院统计报表.xlsx",
+            "2023医生组出入院统计报表(康复).xlsx",
+            "2024医生组出入院统计报表.xlsx",
+            "2024医生组出入院统计报表(康复).xlsx",
+            "2025医生组出入院统计报表.xlsx",
+            "2025医生组出入院统计报表(康复).xlsx",
+            "202601-04.15医生组出入院统计报表.xlsx",
+            "202601-04.15医生组出入院统计报表(康复).xlsx"
+        ]
+    }
+}

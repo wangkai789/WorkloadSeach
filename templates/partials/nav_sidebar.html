@@ -1,0 +1,36 @@
+{# 共用侧边栏导航（登录后页面）。使用方式：
+   {% set active_page = 'history' %}{% include 'partials/nav_sidebar.html' %}
+   页面需自行提供 navGo(page) 函数以决定切换行为（SPA 内部切换 或 整页跳转）。 #}
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1>东华系统</h1>
+        <p>工作量查询</p>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-item {{ 'active' if active_page == 'history' else '' }}" data-page="history" onclick="navGo('history')">
+            <span class="icon">📋</span>
+            <span class="text">历史记录</span>
+        </div>
+        <div class="nav-item {{ 'active' if active_page == 'patient' else '' }}" data-page="patient" onclick="navGo('patient')">
+            <span class="icon">🧑‍</span>
+            <span class="text">患者查询</span>
+        </div>
+        <div class="nav-item {{ 'active' if active_page == 'config' else '' }}" data-page="config" onclick="navGo('config')">
+            <span class="icon">⚙️</span>
+            <span class="text">数据库配置</span>
+        </div>
+        <div class="nav-item {{ 'active' if active_page == 'users' else '' }}" data-page="users" onclick="navGo('users')">
+            <span class="icon">👥</span>
+            <span class="text">用户管理</span>
+        </div>
+        <div class="nav-item {{ 'active' if active_page == 'about' else '' }}" data-page="about" onclick="navGo('about')">
+            <span class="icon">ℹ️</span>
+            <span class="text">关于</span>
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="user-info"><span id="currentUser">未登录</span></div>
+        <div class="version-info">v{{ version }}</div>
+        <button class="btn-logout" onclick="logout()">退出登录</button>
+    </div>
+</aside>

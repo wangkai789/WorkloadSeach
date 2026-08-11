@@ -1,0 +1,97 @@
+        /* 左侧导航（共用样式，见 partials/nav_sidebar_styles.html） */
+        .sidebar {
+            width: 240px;
+            background: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            z-index: 100;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+        }
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        .sidebar-header h1 {
+            font-size: 1.3em;
+            color: white;
+            margin-bottom: 5px;
+        }
+        .sidebar-header p {
+            font-size: 0.85em;
+            color: rgba(255,255,255,0.6);
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 25px;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+            gap: 12px;
+        }
+        .nav-item:hover {
+            background: var(--sidebar-hover);
+            color: white;
+        }
+        .nav-item.active {
+            background: var(--sidebar-hover);
+            color: white;
+            border-left-color: var(--primary);
+        }
+        .nav-item .icon {
+            font-size: 1.2em;
+            width: 24px;
+            text-align: center;
+        }
+        .nav-item .text {
+            font-size: 0.95em;
+        }
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-footer .user-info {
+            font-size: 0.85em;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        .sidebar-footer .version-info {
+            font-size: 0.75em;
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .sidebar-footer .btn-logout {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        .sidebar-footer .btn-logout:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        @media (max-width: 800px) {
+            .sidebar { width: 60px; }
+            .sidebar-header h1, .sidebar-header p, .nav-item .text, .sidebar-footer {
+                display: none;
+            }
+            .nav-item { justify-content: center; padding: 14px; }
+            .main-content { margin-left: 60px; }
+        }

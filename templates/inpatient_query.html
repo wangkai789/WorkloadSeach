@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>东华住院工作量查询 v2.1</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --secondary: #6c757d;
+            --sidebar-bg: #2d3748;
+            --sidebar-hover: #4a5568;
+            --border: #ddd;
+            --text: #333;
+            --text-light: #666;
+            --bg-light: #f8f9fa;
+            --shadow: 0 10px 40px rgba(0,0,0,0.15);
+            --radius: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            min-height: 100vh;
+            color: var(--text);
+        }
+
+        /* 整体布局 */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        {% include 'partials/nav_sidebar_styles.html' %}
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            padding: 30px;
+        }
+        .page-header {
+            color: white;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .page-header h2 {
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .page-header p {
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        /* 页面 */
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+
+        /* 卡片 */
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: var(--text);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--primary);
+            font-size: 1.2em;
+        }
+
+        /* 表单 */
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group { flex: 1; }
+
+        /* 按钮 */
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: var(--warning); color: var(--text); }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-info { background: var(--info); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+        .btn-row { display: inline-flex; flex-wrap: nowrap; gap: 8px; margin-top: 10px; }
+
+        /* 配置信息 */
+        .config-info {
+            background: var(--bg-light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .config-info p { margin: 4px 0; color: var(--text-light); font-size: 14px; }
+        .config-info strong { color: var(--text); }
+
+        /* 结果框 */
+        .result-box {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            line-height: 1.6;
+        }
+        .result-box.show { display: block; }
+        .result-box.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result-box.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .result-box a { color: var(--primary); font-weight: 600; }
+
+        /* 门诊查询结果表格 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .data-table th {
+            background: var(--bg-light);
+            font-weight: 600;
+        }
+        .data-table tbody tr:hover {
+            background: #f5f5f5;
+        }
+
+        /* 加载动画 */
+        .loading { display: none; text-align: center; padding: 25px; }
+        .loading.show { display: block; }
+        /* 查询进度条（时长不确定，持续来回滚动提示"正在查询"） */
+        .progress-bar {
+            width: 100%;
+            max-width: 320px;
+            height: 6px;
+            margin: 0 auto;
+            background: #eef0f5;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 40%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            animation: progress-sweep 1.2s ease-in-out infinite;
+        }
+        @keyframes progress-sweep {
+            0% { margin-left: -40%; }
+            100% { margin-left: 100%; }
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: var(--shadow);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 { color: var(--text); }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 26px;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+        }
+        .modal-close:hover { color: var(--text); }
+
+        /* 历史表格 */
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .history-table th,
+        .history-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .history-table th {
+            background: var(--bg-light);
+            font-weight: 600;
+        }
+        .history-table tr:hover { background: #fafafa; }
+        .history-table .name { font-weight: bold; color: var(--primary); }
+        .history-table .date-range { color: var(--text-light); font-size: 12px; }
+        .empty-history { text-align: center; color: #999; padding: 30px; }
+        .history-actions { display: flex; gap: 5px; }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: var(--radius);
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .stat-card .label {
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        /* 关于页面 */
+        .about-content {
+            line-height: 1.8;
+            color: var(--text-light);
+        }
+        .about-content h4 {
+            color: var(--text);
+            margin: 20px 0 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        {% set active_page = active_page|default('history') %}
+        {% include 'partials/nav_sidebar.html' %}
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <!-- 历史记录页面 -->
+            <div class="page active" id="page-history">
+                <div class="page-header">
+                    <h2>历史记录</h2>
+                    <p>查看历史查询记录</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="number" id="statTotal">0</div>
+                        <div class="label">总查询次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="statToday">0</div>
+                        <div class="label">今日查询</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>查询历史</h3>
+                    <div class="filter-row" style="margin-bottom: 15px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <label>日期筛选：</label>
+                        <input type="date" id="filterStartDate" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        <span>至</span>
+                        <input type="date" id="filterEndDate" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        <button class="btn btn-primary" onclick="filterHistory()">查询</button>
+                        <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+                        <button class="btn btn-success" onclick="exportHistoryXLS()">导出XLS</button>
+                        <button class="btn btn-secondary" onclick="clearHistory()">清除历史</button>
+                    </div>
+                    <div id="historyContainer">
+                        <div class="empty-history">暂无查询记录</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 患者查询页面 -->
+            <div class="page" id="page-patient">
+                <div class="page-header">
+                    <h2>患者查询</h2>
+                    <p>按医生或护士姓名查询名下患者列表</p>
+                </div>
+
+                <div class="card">
+                    <h3>查询条件</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>查询类型</label>
+                            <select id="patient_role" onchange="onPatientRoleChange()">
+                                <option value="doctor">医生</option>
+                                <option value="nurse">责任护士</option>
+                                <option value="quality">质控护士</option>
+                                <option value="dept">科室</option>
+                                <option value="diag">诊断</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label id="patientNameLabel">姓名</label>
+                            <input type="text" id="patient_name" placeholder="请输入医生或护士姓名">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>开始日期</label>
+                            <input type="date" id="patient_start_date">
+                        </div>
+                        <div class="form-group">
+                            <label>结束日期</label>
+                            <input type="date" id="patient_end_date">
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="btnPatientQuery" onclick="runPatientQuery()">查询</button>
+                        <button class="btn btn-secondary" onclick="resetPatientQuery()">重置</button>
+                    </div>
+
+                    <div class="loading" id="patientLoading">
+                        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+                        <p style="margin-top: 10px; color: #666;">查询中，请稍候...</p>
+                    </div>
+
+                    <div id="patientResultBox"></div>
+                </div>
+            </div>
+
+            <!-- 配置页面 -->
+            <div class="page" id="page-config">
+                <div class="page-header">
+                    <h2>数据库配置</h2>
+                    <p>设置数据库连接参数</p>
+                </div>
+
+                <div class="card">
+                    <h3>当前配置</h3>
+                    <div class="config-info">
+                        <p><strong>服务器:</strong> <span id="currentServer">加载中...</span></p>
+                        <p><strong>端口:</strong> <span id="currentPort">加载中...</span></p>
+                        <p><strong>用户名:</strong> <span id="currentUser">加载中...</span></p>
+                        <p><strong>数据库:</strong> <span id="currentDatabase">加载中...</span></p>
+                        <p><strong>输出目录:</strong> <span id="currentOutputDir">加载中...</span></p>
+                        <p><strong>XLS导出目录:</strong> <span id="currentXlsDir">加载中...</span></p>
+                        <p><strong>PDF导出目录:</strong> <span id="currentPdfDir">加载中...</span></p>
+                        <p><strong>门诊数据目录:</strong> <span id="currentClinicDataDir">加载中...</span></p>
+                    </div>
+                    <div class="btn-row" style="margin-top: 0;">
+                        <button class="btn btn-warning" onclick="openConfigModal()">修改配置</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>门诊报表配置</h3>
+                    <p style="color: #666; margin-bottom: 15px;">选择要查询的报表文件（可多选）</p>
+                    <div class="btn-row" style="margin-top: 0;">
+                        <button class="btn btn-info" onclick="refreshClinicFiles()">刷新文件列表</button>
+                        <button class="btn btn-warning" onclick="openReportsConfigModal()">编辑报表列表</button>
+                    </div>
+                    <div id="clinicFilesList" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-top: 10px;">
+                        <div style="text-align: center; color: #999;">点击"刷新文件列表"加载可用报表</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 关于页面 -->
+            <div class="page" id="page-about">
+                <div class="page-header">
+                    <h2>关于</h2>
+                    <p>系统信息</p>
+                </div>
+
+                <div class="card">
+                    <h3>关于本系统</h3>
+                    <div class="about-content">
+                        <h4>东华住院工作量查询系统</h4>
+                        <p>用于查询医师、护士、麻醉师的工作量统计数据。</p>
+                        
+                        <h4>功能特点</h4>
+                        <ul style="margin-left: 20px;">
+                            <li>支持多种人员类型查询（正高医师、副高医师、护士、麻醉师）</li>
+                            <li>自定义日期范围查询</li>
+                            <li>历史记录保存与管理</li>
+                            <li>数据导出功能</li>
+                        </ul>
+
+                        <h4>技术支持</h4>
+                        <p>Powered by Python Flask + PyInstaller</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 配置模态框 -->
+    <div class="modal" id="configModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>数据库配置</h3>
+                <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>服务器</label>
+                <input type="text" id="config_server" placeholder="例如: 192.168.101.19">
+            </div>
+            <div class="form-group">
+                <label>端口</label>
+                <input type="text" id="config_port" placeholder="例如: 1433">
+            </div>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="config_user" placeholder="例如: dhuser">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="config_password" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label>数据库名称</label>
+                <input type="text" id="config_database" placeholder="例如: dhcc">
+            </div>
+            <div class="form-group">
+                <label>输出目录</label>
+                <input type="text" id="config_output_dir" placeholder="例如: D:\输出">
+            </div>
+            <div class="form-group">
+                <label>XLS导出目录</label>
+                <input type="text" id="config_xls_dir" placeholder="例如: D:\输出\xls">
+            </div>
+            <div class="form-group">
+                <label>PDF导出目录</label>
+                <input type="text" id="config_pdf_dir" placeholder="例如: D:\输出\pdf">
+            </div>
+            <div class="form-group">
+                <label>门诊数据目录</label>
+                <input type="text" id="config_clinic_data_dir" placeholder="例如: D:\文档\正骨医院\20260226职称数据\data">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                <button class="btn btn-secondary" onclick="closeConfigModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 报表配置模态框 -->
+    <div class="modal" id="reportsConfigModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>选择报表文件</h3>
+                <button class="modal-close" onclick="closeReportsConfigModal()">&times;</button>
+            </div>
+            <p style="color: #666; margin-bottom: 15px;">勾选要查询的报表文件（将查询这些文件中匹配的数据）</p>
+            <div id="reportsCheckboxes" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 15px;">
+            </div>
+            <div style="margin-top: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="selectAllReports" onchange="toggleSelectAllReports()">
+                    <span>全选/取消全选</span>
+                </label>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="saveReportsConfig()">保存配置</button>
+                <button class="btn btn-secondary" onclick="closeReportsConfigModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+
+        // 检查登录状态
+        async function checkLogin() {
+            try {
+                const res = await fetch('/api/session');
+                const data = await res.json();
+                if (!data.logged_in) {
+                    window.location.href = '/login';
+                    return false;
+                }
+                $('currentUser').textContent = data.user.username;
+                return true;
+            } catch (err) {
+                window.location.href = '/login';
+                return false;
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            if (!confirm('确定要退出登录吗？')) return;
+            try {
+                await fetch('/api/session', { method: 'DELETE' });
+                window.location.href = '/login';
+            } catch (err) {
+                window.location.href = '/login';
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!await checkLogin()) return;
+            loadConfig();
+            loadHistory();
+            // 支持 URL 参数切换页面
+            const params = new URLSearchParams(window.location.search);
+            const page = params.get('page');
+            if (page) switchPage(page);
+        });
+
+        // 页面切换
+        function switchPage(page) {
+            // 切换导航高亮
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.page === page);
+            });
+            // 切换页面显示
+            document.querySelectorAll('.page').forEach(p => {
+                p.classList.toggle('active', p.id === `page-${page}`);
+            });
+            // 如果切换到历史页面，刷新统计
+            if (page === 'history') {
+                updateStats();
+            }
+        }
+
+        // 共用侧边栏导航点击入口（见 partials/nav_sidebar.html）
+        // 用户管理是独立页面，需整页跳转；其余为本页内 Tab 切换
+        function navGo(page) {
+            if (page === 'users') {
+                location.href = '/users';
+                return;
+            }
+            switchPage(page);
+        }
+
+        // 更新统计
+        function updateStats() {
+            fetch('/api/history')
+                .then(r => r.json())
+                .then(data => {
+                    const history = data.history || [];
+                    $('statTotal').textContent = history.length;
+                    const today = new Date().toDateString();
+                    const todayCount = history.filter(h => h.query_time && h.query_time.startsWith(today)).length;
+                    $('statToday').textContent = todayCount;
+                });
+        }
+
+        // API请求封装
+        async function api(url, options = {}) {
+            try {
+                const res = await fetch(url, options);
+                const data = await res.json();
+                // 检查是否需要登录
+                if (data.require_login) {
+                    if (confirm('登录已过期，是否跳转到登录页面？')) {
+                        window.location.href = '/login';
+                    }
+                    throw new Error('请先登录');
+                }
+                return data;
+            } catch (err) {
+                console.error('请求失败:', err);
+                throw err;
+            }
+        }
+
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const data = await api('/api/config');
+                $('currentServer').textContent = data.server;
+                $('currentPort').textContent = data.port;
+                $('currentUser').textContent = data.user;
+                $('currentDatabase').textContent = data.database;
+                $('currentOutputDir').textContent = data.output_dir;
+                $('currentXlsDir').textContent = data.xls_dir || '未设置';
+                $('currentPdfDir').textContent = data.pdf_dir || '未设置';
+                $('currentClinicDataDir').textContent = data.clinic_data_dir || '未设置';
+                $('config_server').value = data.server;
+                $('config_port').value = data.port;
+                $('config_user').value = data.user;
+                $('config_database').value = data.database;
+                $('config_output_dir').value = data.output_dir;
+                $('config_xls_dir').value = data.xls_dir || '';
+                $('config_pdf_dir').value = data.pdf_dir || '';
+                $('config_clinic_data_dir').value = data.clinic_data_dir || '';
+                // 保存报表配置
+                window.selectedClinicReports = data.clinic_reports || [];
+                // 自动刷新文件列表
+                refreshClinicFiles();
+            } catch (err) {
+                console.error('加载配置失败:', err);
+            }
+        }
+
+        // 加载历史
+        async function loadHistory() {
+            try {
+                const data = await api('/api/history');
+                window.allHistory = data.history || [];
+                renderHistory(window.allHistory);
+            } catch (err) {
+                console.error('加载历史失败:', err);
+            }
+        }
+
+        // 格式化日期为 yyyy-mm-dd
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split(' ')[0].split('-');
+            if (parts.length === 3) {
+                return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+            return dateStr;
+        }
+
+        // 日期筛选
+        function filterHistory() {
+            const startDate = $('filterStartDate').value;
+            const endDate = $('filterEndDate').value;
+            
+            if (!startDate && !endDate) {
+                renderHistory(window.allHistory || []);
+                return;
+            }
+            
+            const filtered = (window.allHistory || []).filter(item => {
+                const queryDate = formatDate(item.query_time);
+                
+                if (startDate && queryDate < startDate) return false;
+                if (endDate && queryDate > endDate) return false;
+                return true;
+            });
+            
+            renderHistory(filtered);
+        }
+
+        // 重置筛选
+        function resetFilter() {
+            $('filterStartDate').value = '';
+            $('filterEndDate').value = '';
+            renderHistory(window.allHistory || []);
+        }
+
+        // 导出XLS
+        async function exportHistoryXLS() {
+            try {
+                const data = await api('/api/history');
+                if (!data.history?.length) return alert('没有历史记录可导出');
+                window.location.href = '/api/history/export';
+            } catch (err) { alert('导出失败'); }
+        }
+
+        // 打开PDF
+        async function openPDF(xlsxPath) {
+            if (!xlsxPath) return alert('文件路径不存在');
+            const pdfPath = xlsxPath.replace(/\\xls\\/g, '\\pdf\\').replace(/\/xls\//g, '/pdf/').replace('.xlsx', '.pdf');
+            try {
+                const formData = new FormData();
+                formData.append('path', pdfPath);
+                await api('/api/system/pdf/open', { method: 'POST', body: formData });
+            } catch (err) { alert('无法打开PDF'); }
+        }
+
+        // 切换查询类型时更新姓名输入框的标签和提示文字
+        function onPatientRoleChange() {
+            const role = $('patient_role').value;
+            const label = $('patientNameLabel');
+            const input = $('patient_name');
+            if (role === 'dept') {
+                label.textContent = '科室名称';
+                input.placeholder = '请输入科室名称';
+            } else if (role === 'diag') {
+                label.textContent = '诊断名称';
+                input.placeholder = '请输入诊断名称（关键字）';
+            } else {
+                label.textContent = '姓名';
+                input.placeholder = '请输入医生或护士姓名';
+            }
+        }
+
+        // 患者查询
+        async function runPatientQuery() {
+            const name = $('patient_name').value.trim();
+            const role = $('patient_role').value;
+            const startDate = $('patient_start_date').value;
+            const endDate = $('patient_end_date').value;
+
+            if (!name) {
+                if (role === 'dept') return alert('请输入科室名称');
+                if (role === 'diag') return alert('请输入诊断名称');
+                return alert('请输入姓名');
+            }
+
+            const btn = $('btnPatientQuery');
+            btn.disabled = true;
+            $('patientLoading').classList.add('show');
+            $('patientResultBox').innerHTML = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('start_date', startDate);
+                formData.append('end_date', endDate);
+
+                let apiUrl = '/api/reports/patients/by-doctor';
+                if (role === 'dept') {
+                    apiUrl = '/api/reports/patients/by-dept';
+                } else if (role === 'diag') {
+                    apiUrl = '/api/reports/patients/by-diag';
+                } else if (role !== 'doctor') {
+                    apiUrl = '/api/reports/patients/by-nurse';
+                    formData.append('query_type', role === 'nurse' ? 'nurse' : 'quality');
+                }
+
+                const data = await api(apiUrl, { method: 'POST', body: formData });
+
+                if (data.success) {
+                    if (data.rows && data.rows.length > 0) {
+                        let html = `<p style="color:#28a745; font-weight:600; margin-bottom:10px;">查询成功，共 ${data.row_count} 条记录</p>`;
+                        html += `<div style="max-height:500px; overflow:auto;"><table class="data-table"><thead><tr>`;
+                        data.columns.forEach(col => { html += `<th>${col}</th>`; });
+                        html += `</tr></thead><tbody>`;
+                        data.rows.forEach(row => {
+                            html += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
+                        });
+                        html += '</tbody></table></div>';
+                        if (data.output_file) {
+                            html += `<div class="btn-row">
+                                <button class="btn btn-secondary" onclick="openPatientOutputDir()">打开输出目录</button>
+                                ${data.pdf_path ? `<button class="btn btn-info" onclick="openPatientPDF('${data.pdf_path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">查看PDF</button>` : ''}
+                            </div>`;
+                        }
+                        $('patientResultBox').innerHTML = html;
+                    } else {
+                        $('patientResultBox').innerHTML = '<p style="color:#666;">未查询到患者数据</p>';
+                    }
+                } else {
+                    $('patientResultBox').innerHTML = `<p style="color:#dc3545;">查询失败: ${data.message || '未知错误'}</p>`;
+                }
+            } catch (err) {
+                $('patientResultBox').innerHTML = '<p style="color:#dc3545;">查询失败，请稍后重试</p>';
+            } finally {
+                btn.disabled = false;
+                $('patientLoading').classList.remove('show');
+            }
+        }
+
+        // 重置患者查询表单
+        function resetPatientQuery() {
+            $('patient_name').value = '';
+            $('patient_role').value = 'doctor';
+            $('patient_start_date').value = '';
+            $('patient_end_date').value = '';
+            $('patientResultBox').innerHTML = '';
+            onPatientRoleChange();
+        }
+
+        // 打开患者查询结果所在的输出目录
+        async function openPatientOutputDir() {
+            try { await api('/api/system/output-dir/open', { method: 'POST' }); } catch (err) { alert('无法打开目录'); }
+        }
+
+        // 打开患者查询结果的PDF文件
+        async function openPatientPDF(pdfPath) {
+            if (!pdfPath) return alert('文件路径不存在');
+            try {
+                const formData = new FormData();
+                formData.append('path', pdfPath);
+                await api('/api/system/pdf/open', { method: 'POST', body: formData });
+            } catch (err) { alert('无法打开PDF'); }
+        }
+
+        // 发送到钉钉
+        async function sendToDingtalk(filePath, employeeId) {
+            if (!filePath) return alert('文件路径不存在');
+            try {
+                const data = await api('/api/files/dingtalk-deliveries', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: filePath, employee_id: employeeId })
+                });
+                if (data.success) alert('已发送到钉钉');
+                else alert('发送失败: ' + data.message);
+            } catch (err) { alert('发送失败'); }
+        }
+
+        // 删除记录
+        async function deleteRecord(index, filePath) {
+            if (!confirm('确定要删除该记录及对应文件吗？')) return;
+            try {
+                const data = await api(`/api/history/${index}`, { method: 'DELETE' });
+                if (data.success) loadHistory();
+                else alert('删除失败: ' + data.message);
+            } catch (err) { alert('删除失败'); }
+        }
+
+        // 清除历史
+        async function clearHistory() {
+            if (!confirm('确定要清除所有历史记录吗？')) return;
+            try {
+                const data = await api('/api/history', { method: 'DELETE' });
+                if (data.success) renderHistory([]);
+            } catch (err) { alert('清除失败'); }
+        }
+
+        // 渲染历史记录
+        function renderHistory(history) {
+            const container = $('historyContainer');
+            if (!history?.length) {
+                container.innerHTML = '<div class="empty-history">暂无查询记录</div>';
+                return;
+            }
+
+            const html = `
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>#</th><th>员工编号</th><th>姓名</th><th>类型</th><th>开始日期</th><th>结束日期</th><th>记录数</th><th>输出文件</th><th>查询时间</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${history.map((item, i) => `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${item.employee_id || '-'}</td>
+                                <td class="name">${item.name}</td>
+                                <td>${item.query_type}</td>
+                                <td>${item.start_date || '-'}</td>
+                                <td>${item.end_date || '-'}</td>
+                                <td>${item.row_count}</td>
+                                <td>${item.output_file || '-'}</td>
+                                <td>${item.query_time}</td>
+                                <td>
+                                    <div class="history-actions">
+                                        <button class="btn btn-primary btn-sm" onclick="sendToDingtalk('${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', '${(item.employee_id || '').replace(/'/g, "\\'")}')">钉钉</button>
+                                        <button class="btn btn-info btn-sm" onclick="openPDF('${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">PDF</button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteRecord(${i}, '${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        // 配置模态框
+        function openConfigModal() { $('configModal').classList.add('show'); }
+        function closeConfigModal() { $('configModal').classList.remove('show'); }
+
+        // 保存配置
+        async function saveConfig() {
+            const fields = ['server', 'port', 'user', 'password', 'database', 'output_dir', 'xls_dir', 'pdf_dir', 'clinic_data_dir'];
+            const values = fields.map(f => $(`config_${f}`).value.trim());
+            if (values.slice(0, 5).some(v => !v)) return alert('请填写完整配置信息');
+
+            try {
+                const formData = new FormData();
+                fields.forEach((f, i) => formData.append(f, values[i]));
+                // 获取当前选中的报表文件列表
+                const selectedReports = getSelectedReports();
+                formData.append('clinic_reports', JSON.stringify(selectedReports));
+                const data = await api('/api/config', { method: 'PUT', body: formData });
+                if (data.success) {
+                    alert('配置保存成功');
+                    closeConfigModal();
+                    loadConfig();
+                    refreshClinicFiles();
+                } else {
+                    alert('配置保存失败: ' + data.message);
+                }
+            } catch (err) { alert('配置保存出错'); }
+        }
+
+        // 刷新门诊文件列表
+        async function refreshClinicFiles() {
+            try {
+                const data = await api('/api/clinic-report-files');
+                if (data.success && data.files.length > 0) {
+                    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;">';
+                    data.files.forEach(file => {
+                        const isSelected = window.selectedClinicReports ? window.selectedClinicReports.includes(file) : false;
+                        html += `<div style="padding: 8px; background: ${isSelected ? '#e3f2fd' : '#f8f9fa'}; border-radius: 6px; border-left: 3px solid ${isSelected ? '#2196f3' : '#ddd'};">
+                            <span style="color: ${isSelected ? '#1565c0' : '#666'};">${file}</span>
+                            ${isSelected ? '<span style="color: #4caf50; font-size: 12px; margin-left: 8px;">✓ 已选</span>' : ''}
+                        </div>`;
+                    });
+                    html += '</div>';
+                    $('clinicFilesList').innerHTML = html;
+                } else {
+                    $('clinicFilesList').innerHTML = '<div style="text-align: center; color: #999;">目录中没有找到报表文件</div>';
+                }
+            } catch (err) {
+                $('clinicFilesList').innerHTML = '<div style="text-align: center; color: #f44336;">加载文件列表失败</div>';
+            }
+        }
+
+        // 打开报表配置模态框
+        async function openReportsConfigModal() {
+            try {
+                // 先获取文件列表
+                const filesData = await api('/api/clinic-report-files');
+                // 获取当前配置
+                const configData = await api('/api/config');
+                
+                const allFiles = filesData.files || [];
+                const selectedReports = configData.clinic_reports || [];
+                window.selectedClinicReports = selectedReports;
+
+                if (allFiles.length === 0) {
+                    alert('目录下没有找到报表文件，请先检查门诊数据目录配置');
+                    return;
+                }
+
+                let html = '';
+                allFiles.forEach(file => {
+                    const isChecked = selectedReports.includes(file);
+                    html += `<label style="display: flex; align-items: flex-start; gap: 8px; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;">
+                        <input type="checkbox" value="${file}" ${isChecked ? 'checked' : ''} onchange="toggleReportSelection(this)">
+                        <span style="word-break: break-all;">${file}</span>
+                    </label>`;
+                });
+                $('reportsCheckboxes').innerHTML = html;
+                $('selectAllReports').checked = allFiles.length === selectedReports.length;
+                
+                $('reportsConfigModal').classList.add('show');
+            } catch (err) {
+                alert('加载报表列表失败');
+            }
+        }
+
+        // 关闭报表配置模态框
+        function closeReportsConfigModal() {
+            $('reportsConfigModal').classList.remove('show');
+        }
+
+        // 切换报表选中状态
+        function toggleReportSelection(checkbox) {
+            const file = checkbox.value;
+            if (checkbox.checked) {
+                if (!window.selectedClinicReports.includes(file)) {
+                    window.selectedClinicReports.push(file);
+                }
+            } else {
+                window.selectedClinicReports = window.selectedClinicReports.filter(f => f !== file);
+            }
+        }
+
+        // 全选/取消全选
+        function toggleSelectAllReports() {
+            const isChecked = $('selectAllReports').checked;
+            const checkboxes = $('reportsCheckboxes').querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                toggleReportSelection(cb);
+            });
+        }
+
+        // 获取选中的报表列表
+        function getSelectedReports() {
+            return window.selectedClinicReports || [];
+        }
+
+        // 保存报表配置
+        async function saveReportsConfig() {
+            const selectedReports = getSelectedReports();
+            if (selectedReports.length === 0) {
+                alert('请至少选择一个报表文件');
+                return;
+            }
+
+            // 获取其他配置
+            const configData = await api('/api/config');
+            const fields = ['server', 'port', 'user', 'password', 'database', 'output_dir', 'xls_dir', 'pdf_dir', 'clinic_data_dir'];
+            const values = fields.map(f => $(`config_${f}`).value.trim());
+
+            try {
+                const formData = new FormData();
+                fields.forEach((f, i) => formData.append(f, values[i]));
+                formData.append('clinic_reports', JSON.stringify(selectedReports));
+                
+                const data = await api('/api/config', { method: 'PUT', body: formData });
+                if (data.success) {
+                    alert('报表配置保存成功');
+                    closeReportsConfigModal();
+                    refreshClinicFiles();
+                } else {
+                    alert('配置保存失败: ' + data.message);
+                }
+            } catch (err) {
+                alert('保存配置出错');
+            }
+        }
+    </script>
+</body>
+</html>

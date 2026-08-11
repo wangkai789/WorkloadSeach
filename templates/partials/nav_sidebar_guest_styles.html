@@ -1,0 +1,37 @@
+        /* 左侧导航（访客态，见 partials/nav_sidebar_guest.html） */
+        .sidebar {
+            width: 220px;
+            background: var(--sidebar-bg);
+            color: white;
+            position: fixed;
+            height: 100vh;
+        }
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-header h1 { font-size: 1.2em; margin-bottom: 5px; }
+        .sidebar-header p { font-size: 0.8em; color: rgba(255,255,255,0.5); }
+        .sidebar-nav { padding: 15px 0; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            gap: 10px;
+        }
+        .nav-item:hover {
+            background: var(--sidebar-hover);
+            color: white;
+        }
+        .nav-item .icon { font-size: 1.1em; }
+        .nav-item .text { font-size: 0.9em; }
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.75em;
+            color: rgba(255,255,255,0.4);
+        }
