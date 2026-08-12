@@ -6,12 +6,12 @@ from flask import Blueprint, request, jsonify
 # 导入配置模块（根据运行环境选择方式）
 try:
     from ..config import (
-        get_db_config, get_output_dir, get_xls_dir, get_pdf_dir,
+        get_db_config, get_data_warehouse_config, get_output_dir, get_xls_dir, get_pdf_dir,
         save_config_to_file, get_clinic_data_dir, get_clinic_reports
     )
 except ImportError:
     from config import (
-        get_db_config, get_output_dir, get_xls_dir, get_pdf_dir,
+        get_db_config, get_data_warehouse_config, get_output_dir, get_xls_dir, get_pdf_dir,
         save_config_to_file, get_clinic_data_dir, get_clinic_reports
     )
 
@@ -20,6 +20,12 @@ try:
     from ..utils import login_required, ok_response, fail_response
 except ImportError:
     from utils import login_required, ok_response, fail_response
+
+# 导入数据库访问接口
+try:
+    from ..database import test_data_warehouse_connection as test_dw_connection
+except ImportError:
+    from database import test_data_warehouse_connection as test_dw_connection
 
 config_bp = Blueprint('config', __name__)
 
@@ -37,11 +43,19 @@ def get_config():
         description: 当前数据库连接与目录配置
     """
     db_config = get_db_config()
+    data_warehouse_config = get_data_warehouse_config()
     return jsonify({
         'server': db_config.get('server', ''),
         'port': db_config.get('port', ''),
         'user': db_config.get('user', ''),
         'database': db_config.get('database', ''),
+        'data_warehouse': {
+            'driver': data_warehouse_config.get('driver', ''),
+            'server': data_warehouse_config.get('server', ''),
+            'port': data_warehouse_config.get('port', ''),
+            'namespace': data_warehouse_config.get('namespace', ''),
+            'user': data_warehouse_config.get('user', '')
+        },
         'output_dir': get_output_dir(),
         'xls_dir': get_xls_dir(),
         'pdf_dir': get_pdf_dir(),
@@ -103,19 +117,40 @@ def replace_config():
       400:
         description: 缺少必填字段或输出目录创建失败
     """
+    current_db_config = get_db_config()
+    current_warehouse_config = get_data_warehouse_config()
     server = request.form.get('server', '').strip()
     port = request.form.get('port', '').strip()
     user = request.form.get('user', '').strip()
-    password = request.form.get('password', '').strip()
+    password = request.form.get('password', '').strip() or current_db_config.get('password', '')
     database = request.form.get('database', '').strip()
     output_dir = request.form.get('output_dir', '').strip()
     xls_dir = request.form.get('xls_dir', '').strip()
     pdf_dir = request.form.get('pdf_dir', '').strip()
     clinic_data_dir = request.form.get('clinic_data_dir', '').strip()
     clinic_reports = request.form.get('clinic_reports', '').strip()
+    warehouse_driver = request.form.get('warehouse_driver', '').strip()
+    warehouse_server = request.form.get('warehouse_server', '').strip()
+    warehouse_port = request.form.get('warehouse_port', '').strip()
+    warehouse_namespace = request.form.get('warehouse_namespace', '').strip()
+    warehouse_user = request.form.get('warehouse_user', '').strip()
+    warehouse_password = request.form.get('warehouse_password', '').strip()
 
     if not all([server, port, user, database, output_dir]):
         return fail_response('请填写完整配置信息')
+
+    data_warehouse = None
+    if any([warehouse_driver, warehouse_server, warehouse_port, warehouse_namespace, warehouse_user, warehouse_password]):
+        if not all([warehouse_driver, warehouse_server, warehouse_port, warehouse_namespace, warehouse_user]):
+            return fail_response('请填写完整东华数据仓库配置')
+        data_warehouse = {
+            'driver': warehouse_driver,
+            'server': warehouse_server,
+            'port': warehouse_port,
+            'namespace': warehouse_namespace,
+            'user': warehouse_user,
+            'password': warehouse_password or current_warehouse_config.get('password', '')
+        }
 
     try:
         os.makedirs(output_dir, exist_ok=True)
@@ -124,7 +159,7 @@ def replace_config():
 
     success = save_config_to_file(
         server, port, user, password, database, output_dir,
-        xls_dir, pdf_dir, clinic_data_dir, clinic_reports
+        xls_dir, pdf_dir, clinic_data_dir, clinic_reports, data_warehouse
     )
     return ok_response('配置保存成功') if success else fail_response('配置保存失败')
 
@@ -200,3 +235,14 @@ def test_config_connection():
         return fail_response(hint)
     except Exception as e:
         return fail_response(f'测试连接失败: {str(e)}')
+
+
+@config_bp.route('/api/config/data-warehouse/test-connection', methods=['POST'])
+@login_required
+def test_data_warehouse_connection():
+    """测试东华数据仓库连接（需登录）"""
+    try:
+        test_dw_connection()
+        return ok_response('东华数据仓库连接成功')
+    except Exception as e:
+        return fail_response(str(e))

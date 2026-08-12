@@ -7,7 +7,7 @@
         "database": "your_database_name"
     },
     "data_warehouse": {
-        "driver": "InterSystems IRIS",
+        "driver": "InterSystems IRIS ODBC35",
         "server": "172.20.16.28",
         "port": 51773,
         "namespace": "MDR",

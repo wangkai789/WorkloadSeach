@@ -20,7 +20,26 @@ def get_clinic_reports():
     return get_clinic_reports()
 
 
-def query_clinic_data(doctor_name):
+def _period_overlaps(period_start, period_end, start_date=None, end_date=None):
+    if not start_date and not end_date:
+        return True
+    if start_date and period_end < start_date:
+        return False
+    if end_date and period_start > end_date:
+        return False
+    return True
+
+
+def _get_report_period(filename):
+    year = filename[:4]
+    if filename.startswith('202601-04.15'):
+        return '202601~04.15', '2026-01-01', '2026-04-15'
+    if year.isdigit():
+        return year, f'{year}-01-01', f'{year}-12-31'
+    return year, '', ''
+
+
+def query_clinic_data(doctor_name, start_date=None, end_date=None):
     """
     查询门诊数据
     返回: (结果DataFrame, 总记录数) 或 (None, 错误信息)
@@ -34,10 +53,9 @@ def query_clinic_data(doctor_name):
         filepath = os.path.join(data_dir, filename)
         try:
             year = filename[:4]
-            if filename.startswith('202601-04.15'):
-                period = '202601~04.15'
-            else:
-                period = year
+            period, period_start, period_end = _get_report_period(filename)
+            if period_start and period_end and not _period_overlaps(period_start, period_end, start_date, end_date):
+                continue
 
             if year.isdigit() and 2019 <= int(year) <= 2022:
                 header_row = 2

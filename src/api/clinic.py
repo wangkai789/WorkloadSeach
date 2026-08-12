@@ -75,10 +75,12 @@ def create_outpatient_workload_report():
     try:
         doctor_name = request.form.get('doctor_name', '').strip()
         employee_id = request.form.get('employee_id', '').strip()
+        start_date = request.form.get('start_date', '').strip()
+        end_date = request.form.get('end_date', '').strip()
         if not doctor_name:
             return fail_response('请输入医生姓名')
 
-        result, total = query_clinic_data(doctor_name)
+        result, total = query_clinic_data(doctor_name, start_date, end_date)
         if result is None:
             return fail_response(total)
 
@@ -105,7 +107,7 @@ def create_outpatient_workload_report():
         # 保存历史记录
         if xlsx_path:
             save_history_record(
-                employee_id, doctor_name, '门诊查询', '', '',
+                employee_id, doctor_name, '门诊查询', start_date, end_date,
                 os.path.basename(xlsx_path), xlsx_path, total
             )
             # 延迟导入避免循环依赖

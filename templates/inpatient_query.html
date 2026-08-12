@@ -151,6 +151,29 @@
         .config-info p { margin: 4px 0; color: var(--text-light); font-size: 14px; }
         .config-info strong { color: var(--text); }
 
+        .warehouse-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .warehouse-item {
+            background: var(--bg-light);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .warehouse-item .label {
+            color: var(--text-light);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .warehouse-item .value {
+            color: var(--text);
+            font-weight: 600;
+            word-break: break-all;
+        }
+
         /* 结果框 */
         .result-box {
             margin-top: 15px;
@@ -262,6 +285,47 @@
         .empty-history { text-align: center; color: #999; padding: 30px; }
         .history-actions { display: flex; gap: 5px; }
 
+        .workload-user-tools {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .workload-user-summary {
+            color: var(--text-light);
+            font-size: 13px;
+        }
+        .workload-user-table-wrap {
+            max-height: 360px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .workload-user-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .workload-user-table th,
+        .workload-user-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .workload-user-table th {
+            position: sticky;
+            top: 0;
+            background: var(--bg-light);
+            font-weight: 600;
+            z-index: 1;
+        }
+        .workload-user-table tbody tr:hover { background: #fafafa; }
+        .workload-user-table .user-name { font-weight: 600; color: var(--primary); }
+        .workload-user-empty { text-align: center; color: #999; padding: 28px; }
+
         /* 统计卡片 */
         .stats-grid {
             display: grid;
@@ -299,13 +363,61 @@
 </head>
 <body>
     <div class="app-layout">
-        {% set active_page = active_page|default('history') %}
+        {% set active_page = active_page|default('workload') %}
         {% include 'partials/nav_sidebar.html' %}
 
         <!-- 主内容 -->
         <main class="main-content">
+            <!-- 工作量查询页面 -->
+            <div class="page active" id="page-workload">
+                <div class="page-header">
+                    <h2>工作量查询</h2>
+                    <p>按日期范围查询住院工作量</p>
+                </div>
+
+                <div class="card">
+                    <h3>查询条件</h3>
+                    <input type="hidden" id="workload_query_type" value="sp">
+                    <input type="hidden" id="workload_name">
+                    <input type="hidden" id="workload_employee_id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>开始日期</label>
+                            <input type="text" id="workload_start_date" placeholder="yyyy-mm-dd" maxlength="10" onchange="validateWorkloadDateRange('start')">
+                        </div>
+                        <div class="form-group">
+                            <label>结束日期</label>
+                            <input type="text" id="workload_end_date" placeholder="yyyy-mm-dd" maxlength="10" onchange="validateWorkloadDateRange('end')">
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="btnWorkloadQuery" onclick="runWorkloadQuery()">查询</button>
+                        <button class="btn btn-secondary" onclick="resetWorkloadQuery()">重置</button>
+                        <button class="btn btn-primary" id="btnSelectedInpatient" onclick="runSelectedInpatientWorkload()" style="display:none;">住院查询</button>
+                        <button class="btn btn-info" id="btnSelectedOutpatient" onclick="runSelectedOutpatientWorkload()" style="display:none;">门诊查询</button>
+                    </div>
+
+                    <div class="loading" id="workloadLoading">
+                        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+                        <p style="margin-top: 10px; color: #666;">查询中，请稍候...</p>
+                    </div>
+
+                    <div id="workloadResultBox"></div>
+                </div>
+
+                <div class="card">
+                    <div class="workload-user-tools">
+                        <h3 style="margin-bottom: 0; padding-bottom: 0; border-bottom: 0;">用户列表</h3>
+                        <div class="workload-user-summary" id="workloadUserSummary">正在加载...</div>
+                    </div>
+                    <div id="workloadUserList">
+                        <div class="workload-user-empty">正在加载用户列表...</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 历史记录页面 -->
-            <div class="page active" id="page-history">
+            <div class="page" id="page-history">
                 <div class="page-header">
                     <h2>历史记录</h2>
                     <p>查看历史查询记录</p>
@@ -397,7 +509,7 @@
                 </div>
 
                 <div class="card">
-                    <h3>当前配置</h3>
+                    <h3>1. 主数据库配置</h3>
                     <div class="config-info">
                         <p><strong>服务器:</strong> <span id="currentServer">加载中...</span></p>
                         <p><strong>端口:</strong> <span id="currentPort">加载中...</span></p>
@@ -414,7 +526,38 @@
                 </div>
 
                 <div class="card">
-                    <h3>门诊报表配置</h3>
+                    <h3>2. 东华数据仓库</h3>
+                    <div class="warehouse-grid">
+                        <div class="warehouse-item">
+                            <div class="label">数据库驱动</div>
+                            <div class="value" id="warehouseDriver">加载中...</div>
+                        </div>
+                        <div class="warehouse-item">
+                            <div class="label">服务器</div>
+                            <div class="value" id="warehouseServer">加载中...</div>
+                        </div>
+                        <div class="warehouse-item">
+                            <div class="label">端口</div>
+                            <div class="value" id="warehousePort">加载中...</div>
+                        </div>
+                        <div class="warehouse-item">
+                            <div class="label">模式</div>
+                            <div class="value" id="warehouseNamespace">加载中...</div>
+                        </div>
+                        <div class="warehouse-item">
+                            <div class="label">用户</div>
+                            <div class="value" id="warehouseUser">加载中...</div>
+                        </div>
+                    </div>
+                    <div class="btn-row" style="margin-top: 0;">
+                        <button class="btn btn-warning" onclick="openWarehouseConfigModal()">修改配置</button>
+                        <button class="btn btn-info" id="btnWarehouseTest" onclick="testDataWarehouseConnection()">测试连接</button>
+                    </div>
+                    <div class="result-box" id="warehouseTestResult"></div>
+                </div>
+
+                <div class="card">
+                    <h3>3. 门诊报表配置</h3>
                     <p style="color: #666; margin-bottom: 15px;">选择要查询的报表文件（可多选）</p>
                     <div class="btn-row" style="margin-top: 0;">
                         <button class="btn btn-info" onclick="refreshClinicFiles()">刷新文件列表</button>
@@ -505,6 +648,44 @@
         </div>
     </div>
 
+    <!-- 东华数据仓库配置模态框 -->
+    <div class="modal" id="warehouseConfigModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>东华数据仓库配置</h3>
+                <button class="modal-close" onclick="closeWarehouseConfigModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>数据库驱动</label>
+                <input type="text" id="warehouse_config_driver" placeholder="例如: InterSystems IRIS ODBC35">
+            </div>
+            <div class="form-group">
+                <label>服务器</label>
+                <input type="text" id="warehouse_config_server" placeholder="例如: 172.20.16.28">
+            </div>
+            <div class="form-group">
+                <label>端口</label>
+                <input type="text" id="warehouse_config_port" placeholder="例如: 51773">
+            </div>
+            <div class="form-group">
+                <label>模式</label>
+                <input type="text" id="warehouse_config_namespace" placeholder="例如: MDR">
+            </div>
+            <div class="form-group">
+                <label>用户</label>
+                <input type="text" id="warehouse_config_user" placeholder="例如: _system">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="warehouse_config_password" placeholder="请输入密码">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="saveWarehouseConfig()">保存配置</button>
+                <button class="btn btn-secondary" onclick="closeWarehouseConfigModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 报表配置模态框 -->
     <div class="modal" id="reportsConfigModal">
         <div class="modal-content" style="max-width: 600px;">
@@ -562,8 +743,10 @@
         // 初始化
         document.addEventListener('DOMContentLoaded', async () => {
             if (!await checkLogin()) return;
+            initWorkloadDateRange();
             loadConfig();
             loadHistory();
+            loadWorkloadUsers();
             // 支持 URL 参数切换页面
             const params = new URLSearchParams(window.location.search);
             const page = params.get('page');
@@ -609,6 +792,51 @@
                 });
         }
 
+        function getTodayValue() {
+            const now = new Date();
+            const offset = now.getTimezoneOffset() * 60000;
+            return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+        }
+
+        function initWorkloadDateRange() {
+            const today = getTodayValue();
+            const startInput = $('workload_start_date');
+            const endInput = $('workload_end_date');
+            startInput.value = today;
+            endInput.value = today;
+            startInput.max = endInput.value;
+            endInput.min = startInput.value;
+        }
+
+        function isValidYmdDate(value) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+            const [year, month, day] = value.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            return date.getFullYear() === year
+                && date.getMonth() === month - 1
+                && date.getDate() === day;
+        }
+
+        function validateWorkloadDateRange(changedField) {
+            const today = getTodayValue();
+            const startInput = $('workload_start_date');
+            const endInput = $('workload_end_date');
+
+            if (!startInput.value) startInput.value = today;
+            if (!endInput.value) endInput.value = today;
+
+            if (!isValidYmdDate(startInput.value)) startInput.value = today;
+            if (!isValidYmdDate(endInput.value)) endInput.value = today;
+
+            if (startInput.value > endInput.value) {
+                if (changedField === 'start') {
+                    endInput.value = startInput.value;
+                } else {
+                    startInput.value = endInput.value;
+                }
+            }
+        }
+
         // API请求封装
         async function api(url, options = {}) {
             try {
@@ -640,6 +868,18 @@
                 $('currentXlsDir').textContent = data.xls_dir || '未设置';
                 $('currentPdfDir').textContent = data.pdf_dir || '未设置';
                 $('currentClinicDataDir').textContent = data.clinic_data_dir || '未设置';
+                const warehouse = data.data_warehouse || {};
+                $('warehouseDriver').textContent = warehouse.driver || 'InterSystems IRIS ODBC35';
+                $('warehouseServer').textContent = warehouse.server || '172.20.16.28';
+                $('warehousePort').textContent = warehouse.port || '51773';
+                $('warehouseNamespace').textContent = warehouse.namespace || 'MDR';
+                $('warehouseUser').textContent = warehouse.user || '_system';
+                $('warehouse_config_driver').value = warehouse.driver || 'InterSystems IRIS ODBC35';
+                $('warehouse_config_server').value = warehouse.server || '172.20.16.28';
+                $('warehouse_config_port').value = warehouse.port || '51773';
+                $('warehouse_config_namespace').value = warehouse.namespace || 'MDR';
+                $('warehouse_config_user').value = warehouse.user || '_system';
+                $('warehouse_config_password').value = '';
                 $('config_server').value = data.server;
                 $('config_port').value = data.port;
                 $('config_user').value = data.user;
@@ -724,6 +964,389 @@
                 formData.append('path', pdfPath);
                 await api('/api/system/pdf/open', { method: 'POST', body: formData });
             } catch (err) { alert('无法打开PDF'); }
+        }
+
+        function escapeHtml(value) {
+            const entities = {
+                '&': '&' + 'amp;',
+                '<': '&' + 'lt;',
+                '>': '&' + 'gt;',
+                '"': '&' + 'quot;',
+                "'": '&' + '#39;'
+            };
+            return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
+        }
+
+        function escapeJs(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r?\n/g, ' ');
+        }
+
+        function getWorkloadQueryType(title) {
+            const map = {
+                '主任医师': 'sp',
+                '副主任医师': 'ap',
+                '护士': 'nurse',
+                '麻醉医师': 'anes',
+                '麻醉师': 'anes'
+            };
+            return map[title] || 'sp';
+        }
+
+        function renderWorkloadUsers(users, summaryText) {
+            const list = $('workloadUserList');
+            const summary = $('workloadUserSummary');
+            summary.textContent = summaryText || `共 ${users.length} 人`;
+
+            if (!users.length) {
+                list.innerHTML = '<div class="workload-user-empty">暂无符合条件的用户</div>';
+                return;
+            }
+
+            window.currentWorkloadRenderedUsers = users;
+            window.selectedWorkloadUsers = [];
+            list.innerHTML = `
+                <div class="workload-user-table-wrap">
+                    <table class="workload-user-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="workloadSelectAll" onchange="toggleAllWorkloadUsers(this.checked)"></th>
+                                <th>员工编号</th>
+                                <th>姓名</th>
+                                <th>职称</th>
+                                <th>统计日期范围</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map((user, index) => `
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="workload-user-checkbox" onchange="toggleWorkloadUserSelection(${index}, this.checked)">
+                                    </td>
+                                    <td>${escapeHtml(user.employee_id || '-')}</td>
+                                    <td class="user-name">${escapeHtml(user.username || '-')}</td>
+                                    <td>${escapeHtml(user.title || '-')}</td>
+                                    <td>${escapeHtml(user.start_date || '-')} 至 ${escapeHtml(user.end_date || '-')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function loadWorkloadUsers() {
+            const list = $('workloadUserList');
+            const summary = $('workloadUserSummary');
+            list.innerHTML = '<div class="workload-user-empty">正在加载用户列表...</div>';
+            summary.textContent = '正在加载...';
+
+            try {
+                const data = await api('/api/users');
+                if (!data.success) {
+                    list.innerHTML = `<div class="workload-user-empty">${escapeHtml(data.message || '用户列表加载失败')}</div>`;
+                    summary.textContent = '加载失败';
+                    return;
+                }
+
+                window.workloadUsers = data.users || [];
+                list.innerHTML = '<div class="workload-user-empty">请选择时间段后查询用户</div>';
+                summary.textContent = `已加载 ${window.workloadUsers.length} 人`;
+            } catch (err) {
+                console.error('加载工作量用户列表失败:', err);
+                list.innerHTML = '<div class="workload-user-empty">用户列表加载失败</div>';
+                summary.textContent = '加载失败';
+            }
+        }
+
+        function normalizeDateOnly(value) {
+            if (!value) return '';
+            return String(value).trim().split(' ')[0].replace(/\//g, '-');
+        }
+
+        function getValidatedDateInput(inputId, fieldLabel) {
+            const value = normalizeDateOnly($(inputId).value);
+            if (!value) return '';
+            if (!isValidYmdDate(value)) {
+                alert(`${fieldLabel}格式必须为 yyyy-mm-dd`);
+                $(inputId).focus();
+                return '';
+            }
+            return value;
+        }
+
+        function filterWorkloadUsersByDateRange() {
+            const startDate = getValidatedDateInput('workload_start_date', '开始日期');
+            const endDate = getValidatedDateInput('workload_end_date', '结束日期');
+            if (!startDate || !endDate) return;
+            if (startDate > endDate) return alert('开始日期不能晚于结束日期');
+
+            const users = window.workloadUsers || [];
+            const filtered = users.filter(user => {
+                const userEndDate = normalizeDateOnly(user.end_date);
+                return userEndDate && userEndDate >= startDate && userEndDate <= endDate;
+            });
+            renderWorkloadUsers(filtered, `统计结束日期 ${startDate} 至 ${endDate}，共 ${filtered.length} 人`);
+            $('workloadResultBox').innerHTML = '';
+        }
+
+        function toggleWorkloadUserSelection(index, checked) {
+            const users = window.currentWorkloadRenderedUsers || [];
+            const user = users[index];
+            if (!user) return;
+
+            const key = user.employee_id || user.username || String(index);
+            const selected = window.selectedWorkloadUsers || [];
+            window.selectedWorkloadUsers = checked
+                ? [...selected.filter(item => item.key !== key), { key, user }]
+                : selected.filter(item => item.key !== key);
+            updateWorkloadSelectionState();
+        }
+
+        function toggleAllWorkloadUsers(checked) {
+            const users = window.currentWorkloadRenderedUsers || [];
+            document.querySelectorAll('.workload-user-checkbox').forEach(checkbox => {
+                checkbox.checked = checked;
+            });
+            window.selectedWorkloadUsers = checked
+                ? users.map((user, index) => ({ key: user.employee_id || user.username || String(index), user }))
+                : [];
+            updateWorkloadSelectionState();
+        }
+
+        function updateWorkloadSelectionState() {
+            const selected = window.selectedWorkloadUsers || [];
+            const selectAll = $('workloadSelectAll');
+            if (selectAll) {
+                const total = (window.currentWorkloadRenderedUsers || []).length;
+                selectAll.checked = total > 0 && selected.length === total;
+                selectAll.indeterminate = selected.length > 0 && selected.length < total;
+            }
+
+            const firstUser = selected[0]?.user || null;
+            $('workload_employee_id').value = firstUser ? (firstUser.employee_id || firstUser.username || '') : '';
+            $('workload_name').value = selected.map(item => item.user.username || '').filter(Boolean).join(',');
+            $('workload_query_type').value = firstUser ? getWorkloadQueryType(firstUser.title) : 'sp';
+
+            const hasSelected = selected.length > 0;
+            $('btnSelectedInpatient').style.display = hasSelected ? 'inline-block' : 'none';
+            $('btnSelectedOutpatient').style.display = hasSelected ? 'inline-block' : 'none';
+
+            if (!hasSelected) {
+                $('workloadResultBox').innerHTML = '';
+                return;
+            }
+
+            const names = selected.map(item => item.user.username || item.user.employee_id || '-').join('、');
+            $('workloadResultBox').innerHTML = `
+                <div class="result-box show success">
+                    已选择 ${selected.length} 条记录：${escapeHtml(names)}
+                </div>
+            `;
+        }
+
+        function getSelectedWorkloadUsers() {
+            const selected = window.selectedWorkloadUsers || [];
+            if (!selected.length) {
+                alert('请先选择记录');
+                return [];
+            }
+            return selected.map(item => item.user).filter(Boolean);
+        }
+
+        function renderDataTable(columns, rows) {
+            if (!rows.length) return '<p style="color:#666; margin-top:10px;">未查询到数据</p>';
+            return `
+                <div style="overflow-x: auto; margin-top: 10px;">
+                    <table class="history-table">
+                        <thead><tr>${columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell ?? '')}</td>`).join('')}</tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function runSelectedInpatientWorkload() {
+            const users = getSelectedWorkloadUsers();
+            if (!users.length) return;
+
+            const invalidUser = users.find(user => !normalizeDateOnly(user.start_date) || !normalizeDateOnly(user.end_date));
+            if (invalidUser) return alert(`${invalidUser.username || invalidUser.employee_id || '所选用户'}缺少统计日期范围`);
+
+            const btn = $('btnWorkloadQuery');
+            const inpatientBtn = $('btnSelectedInpatient');
+            const outpatientBtn = $('btnSelectedOutpatient');
+            btn.disabled = true;
+            inpatientBtn.disabled = true;
+            outpatientBtn.disabled = true;
+            $('workloadLoading').classList.add('show');
+            $('workloadResultBox').innerHTML = '<div class="result-box show success">住院查询中...</div>';
+
+            const blocks = [];
+            try {
+                for (const user of users) {
+                    const formData = new FormData();
+                    formData.append('name', user.username || user.employee_id || '');
+                    formData.append('employee_id', user.employee_id || user.username || '');
+                    formData.append('query_type', getWorkloadQueryType(user.title));
+                    const startDate = normalizeDateOnly(user.start_date);
+                    const endDate = normalizeDateOnly(user.end_date);
+                    formData.append('start_date', startDate);
+                    formData.append('end_date', endDate);
+
+                    const data = await api('/api/reports/inpatient-workload', { method: 'POST', body: formData });
+                    if (data.success) loadHistory();
+                    blocks.push(`
+                        <div class="result-box show ${data.success ? 'success' : 'error'}">
+                            <strong>${escapeHtml(user.username || user.employee_id || '-')} - 住院查询</strong>
+                            <div style="margin-top: 6px;">统计日期范围：${escapeHtml(startDate)} 至 ${escapeHtml(endDate)}</div>
+                            <div style="margin-top: 6px;">${escapeHtml(data.message || (data.success ? '查询完成' : '查询失败'))}</div>
+                            ${data.success ? renderDataTable(data.columns || [], data.rows || []) : ''}
+                        </div>
+                    `);
+                }
+                $('workloadResultBox').innerHTML = blocks.join('');
+            } catch (err) {
+                console.error('批量住院查询失败:', err);
+                $('workloadResultBox').innerHTML = '<div class="result-box show error">住院查询请求失败</div>';
+            } finally {
+                btn.disabled = false;
+                inpatientBtn.disabled = false;
+                outpatientBtn.disabled = false;
+                $('workloadLoading').classList.remove('show');
+            }
+        }
+
+        async function runSelectedOutpatientWorkload() {
+            const users = getSelectedWorkloadUsers();
+            if (!users.length) return;
+
+            const btn = $('btnWorkloadQuery');
+            const inpatientBtn = $('btnSelectedInpatient');
+            const outpatientBtn = $('btnSelectedOutpatient');
+            btn.disabled = true;
+            inpatientBtn.disabled = true;
+            outpatientBtn.disabled = true;
+            $('workloadLoading').classList.add('show');
+            $('workloadResultBox').innerHTML = '<div class="result-box show success">门诊查询中...</div>';
+
+            const blocks = [];
+            try {
+                for (const user of users) {
+                    const formData = new FormData();
+                    const startDate = normalizeDateOnly(user.start_date);
+                    const endDate = normalizeDateOnly(user.end_date);
+                    formData.append('doctor_name', user.username || '');
+                    formData.append('employee_id', user.employee_id || '');
+                    formData.append('start_date', startDate);
+                    formData.append('end_date', endDate);
+
+                    const data = await api('/api/reports/outpatient-workload', { method: 'POST', body: formData });
+                    const rows = (data.data || []).map(row => [row['期间'] || '-', row['医师姓名'] || '-', row['门诊人次'] || 0]);
+                    blocks.push(`
+                        <div class="result-box show ${data.success ? 'success' : 'error'}">
+                            <strong>${escapeHtml(user.username || user.employee_id || '-')} - 门诊查询</strong>
+                            <div style="margin-top: 6px;">统计日期范围：${escapeHtml(startDate)} 至 ${escapeHtml(endDate)}</div>
+                            <div style="margin-top: 6px;">${escapeHtml(data.message || (data.success ? `查询完成，共 ${data.total || rows.length} 条记录` : '查询失败'))}</div>
+                            ${data.success ? renderDataTable(['期间', '医师姓名', '门诊人次'], rows) : ''}
+                        </div>
+                    `);
+                }
+                $('workloadResultBox').innerHTML = blocks.join('');
+            } catch (err) {
+                console.error('批量门诊查询失败:', err);
+                $('workloadResultBox').innerHTML = '<div class="result-box show error">门诊查询请求失败</div>';
+            } finally {
+                btn.disabled = false;
+                inpatientBtn.disabled = false;
+                outpatientBtn.disabled = false;
+                $('workloadLoading').classList.remove('show');
+            }
+        }
+
+        function renderWorkloadResult(data) {
+            const rows = data.rows || [];
+            const columns = data.columns || [];
+            const outputPath = (data.output_file || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const tableHtml = rows.length ? `
+                <div style="overflow-x: auto; margin-top: 15px;">
+                    <table class="history-table">
+                        <thead><tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : '';
+
+            $('workloadResultBox').innerHTML = `
+                <div class="result-box show success">
+                    ${data.message || '查询完成'}
+                    <div class="btn-row" style="margin-top: 10px;">
+                        ${data.pdf_path || data.output_file ? `<button class="btn btn-info" onclick="openPDF('${outputPath}')">打开PDF</button>` : ''}
+                        ${data.output_file ? `<button class="btn btn-success" onclick="openPatientOutputDir()">打开输出目录</button>` : ''}
+                    </div>
+                </div>
+                ${tableHtml}
+            `;
+        }
+
+        async function runWorkloadForUser(employeeId, username, title) {
+            const queryType = getWorkloadQueryType(title);
+            const startDate = getValidatedDateInput('workload_start_date', '开始日期');
+            const endDate = getValidatedDateInput('workload_end_date', '结束日期');
+
+            if (!username || !startDate || !endDate) return;
+            if (startDate > endDate) return alert('开始日期不能晚于结束日期');
+
+            const btn = $('btnWorkloadQuery');
+            btn.disabled = true;
+            $('workloadLoading').classList.add('show');
+            $('workloadResultBox').innerHTML = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('name', username);
+                formData.append('employee_id', employeeId || username);
+                formData.append('query_type', queryType);
+                formData.append('start_date', startDate);
+                formData.append('end_date', endDate);
+
+                const data = await api('/api/reports/inpatient-workload', { method: 'POST', body: formData });
+                if (data.success) {
+                    renderWorkloadResult(data);
+                    loadHistory();
+                } else {
+                    $('workloadResultBox').innerHTML = `<div class="result-box show error">${data.message || '查询失败'}</div>`;
+                }
+            } catch (err) {
+                $('workloadResultBox').innerHTML = '<div class="result-box show error">查询请求失败</div>';
+            } finally {
+                btn.disabled = false;
+                $('workloadLoading').classList.remove('show');
+            }
+        }
+
+        function runWorkloadQuery() {
+            filterWorkloadUsersByDateRange();
+        }
+
+        function resetWorkloadQuery() {
+            $('workload_name').value = '';
+            $('workload_employee_id').value = '';
+            $('workload_query_type').value = 'sp';
+            window.selectedWorkloadUsers = [];
+            window.currentWorkloadRenderedUsers = [];
+            $('btnSelectedInpatient').style.display = 'none';
+            $('btnSelectedOutpatient').style.display = 'none';
+            initWorkloadDateRange();
+            validateWorkloadDateRange('start');
+            $('workloadResultBox').innerHTML = '';
+            loadWorkloadUsers();
         }
 
         // 切换查询类型时更新姓名输入框的标签和提示文字
@@ -936,6 +1559,81 @@
                     alert('配置保存失败: ' + data.message);
                 }
             } catch (err) { alert('配置保存出错'); }
+        }
+
+        function openWarehouseConfigModal() { $('warehouseConfigModal').classList.add('show'); }
+        function closeWarehouseConfigModal() { $('warehouseConfigModal').classList.remove('show'); }
+
+        async function saveWarehouseConfig() {
+            const warehouseFields = ['driver', 'server', 'port', 'namespace', 'user', 'password'];
+            const warehouseValues = warehouseFields.map(f => $(`warehouse_config_${f}`).value.trim());
+            if (warehouseValues.slice(0, 5).some(v => !v)) return alert('请填写完整东华数据仓库配置');
+
+            try {
+                const formData = new FormData();
+                const fields = ['server', 'port', 'user', 'password', 'database', 'output_dir', 'xls_dir', 'pdf_dir', 'clinic_data_dir'];
+                fields.forEach(f => formData.append(f, $(`config_${f}`).value.trim()));
+                formData.append('clinic_reports', JSON.stringify(getSelectedReports()));
+                warehouseFields.forEach((f, i) => formData.append(`warehouse_${f}`, warehouseValues[i]));
+
+                const data = await api('/api/config', { method: 'PUT', body: formData });
+                if (data.success) {
+                    alert('东华数据仓库配置保存成功');
+                    closeWarehouseConfigModal();
+                    loadConfig();
+                } else {
+                    alert('东华数据仓库配置保存失败: ' + data.message);
+                }
+            } catch (err) { alert('东华数据仓库配置保存出错'); }
+        }
+
+        // 测试东华数据仓库连接
+        async function testDataWarehouseConnection() {
+            const btn = $('btnWarehouseTest');
+            const box = $('warehouseTestResult');
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+            box.className = 'result-box show';
+            box.textContent = '正在测试东华数据仓库连接...';
+
+            try {
+                const res = await fetch('/api/config/data-warehouse/test-connection', { method: 'POST' });
+                const contentType = res.headers.get('content-type') || '';
+                const rawText = await res.text();
+                let data = null;
+
+                if (contentType.includes('application/json') && rawText) {
+                    data = JSON.parse(rawText);
+                }
+
+                if (data && data.require_login) {
+                    box.className = 'result-box show error';
+                    box.textContent = '登录已过期，请重新登录后再测试';
+                    return;
+                }
+
+                if (!res.ok) {
+                    const responseText = rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    box.className = 'result-box show error';
+                    box.textContent = `连接测试接口请求失败：HTTP ${res.status}${responseText ? '，响应：' + responseText.slice(0, 120) : ''}`;
+                    return;
+                }
+
+                if (!data) {
+                    box.className = 'result-box show error';
+                    box.textContent = '连接测试接口返回内容不是JSON，请重启后端服务或重新打包程序后再测试';
+                    return;
+                }
+
+                box.className = `result-box show ${data.success ? 'success' : 'error'}`;
+                box.textContent = data.message || (data.success ? '连接成功' : '连接失败');
+            } catch (err) {
+                box.className = 'result-box show error';
+                box.textContent = `连接测试请求失败：${err.message || err}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '测试连接';
+            }
         }
 
         // 刷新门诊文件列表

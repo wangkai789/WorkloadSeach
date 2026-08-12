@@ -6,9 +6,9 @@ from datetime import datetime
 
 # 导入配置（根据运行环境选择方式）
 try:
-    from .config import get_db_config, get_xls_dir
+    from .config import get_db_config, get_data_warehouse_config, get_xls_dir
 except ImportError:
-    from config import get_db_config, get_xls_dir
+    from config import get_db_config, get_data_warehouse_config, get_xls_dir
 
 # 类型映射
 QUERY_TYPES = {
@@ -80,6 +80,105 @@ def get_connection():
             ) from e
         else:
             raise
+
+
+def _build_data_warehouse_conn_str(config):
+    """构建东华数据仓库ODBC连接字符串"""
+    driver = config.get('driver', 'InterSystems IRIS')
+    server = config.get('server', '')
+    port = config.get('port', '')
+    namespace = config.get('namespace', '')
+    user = config.get('user', '')
+    password = config.get('password', '')
+
+    if not all([driver, server, port, namespace, user]):
+        raise ValueError('东华数据仓库配置不完整，请检查驱动、服务器、端口、模式和用户名')
+
+    return (
+        f"DRIVER={{{driver}}};"
+        f"SERVER={server};"
+        f"PORT={port};"
+        f"DATABASE={namespace};"
+        f"UID={user};PWD={password};"
+        f"Connection Timeout=10;"
+    )
+
+
+def _format_data_warehouse_error(error, config):
+    """格式化东华数据仓库连接错误"""
+    error_msg = str(error)
+    driver = config.get('driver', 'InterSystems IRIS')
+    server = config.get('server', '')
+    port = config.get('port', '')
+
+    if 'Data source name not found' in error_msg or 'IM002' in error_msg:
+        return f"未找到 ODBC 驱动 '{driver}'，请检查 InterSystems IRIS ODBC 驱动是否已安装。"
+    if 'HYT00' in error_msg or 'timeout' in error_msg.lower():
+        return f"连接 {server}:{port} 超时，请检查网络、端口和数据仓库服务状态。"
+    return f'东华数据仓库连接失败: {error_msg}'
+
+
+def get_data_warehouse_connection():
+    """获取东华数据仓库连接"""
+    import pyodbc
+
+    config = get_data_warehouse_config()
+    conn_str = _build_data_warehouse_conn_str(config)
+
+    try:
+        return pyodbc.connect(conn_str)
+    except pyodbc.Error as e:
+        raise pyodbc.Error(_format_data_warehouse_error(e, config)) from e
+
+
+def test_data_warehouse_connection():
+    """测试东华数据仓库连接"""
+    conn = get_data_warehouse_connection()
+    conn.close()
+    return True
+
+
+def query_data_warehouse(sql, params=None):
+    """
+    执行东华数据仓库查询。
+
+    参数:
+        sql: 参数化SQL语句
+        params: SQL参数，按pyodbc参数顺序传入
+
+    返回:
+        (columns, rows, error)
+        - columns: list[str] 列名，非查询语句或失败时为空列表/None
+        - rows:    list[tuple] 数据行，非查询语句时为空列表
+        - error:   str or None
+    """
+    import pyodbc
+
+    conn = None
+    try:
+        conn = get_data_warehouse_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql, params or [])
+
+        if cursor.description:
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+        else:
+            conn.commit()
+            columns = []
+            rows = []
+
+        return columns, rows, None
+    except pyodbc.Error as e:
+        error_msg = str(e)
+        print(f"东华数据仓库查询错误: {error_msg}")
+        return None, None, f"东华数据仓库查询错误: {error_msg}"
+    except Exception as e:
+        print(f"东华数据仓库查询错误: {e}")
+        return None, None, f"东华数据仓库查询错误: {str(e)}"
+    finally:
+        if conn:
+            conn.close()
 
 
 def init_history_db():

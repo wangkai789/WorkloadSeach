@@ -12,7 +12,7 @@ DEFAULT_CONFIG = {
         'database': 'dhcc'
     },
     'data_warehouse': {
-        'driver': 'InterSystems IRIS',
+        'driver': 'InterSystems IRIS ODBC35',
         'server': '172.20.16.28',
         'port': 51773,
         'namespace': 'MDR',
@@ -132,7 +132,7 @@ def init_db_config():
     CLINIC_REPORTS = DEFAULT_CONFIG['clinic']['clinic_reports']
 
 
-def save_config_to_file(server, port, user, password, database, output_dir, xls_dir='', pdf_dir='', clinic_data_dir='', clinic_reports=None):
+def save_config_to_file(server, port, user, password, database, output_dir, xls_dir='', pdf_dir='', clinic_data_dir='', clinic_reports=None, data_warehouse=None):
     """保存配置文件到JSON格式"""
     global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     config_file = get_config_file()
@@ -147,6 +147,17 @@ def save_config_to_file(server, port, user, password, database, output_dir, xls_
         if clinic_reports is None:
             clinic_reports = DEFAULT_CONFIG['clinic']['clinic_reports']
 
+        current_data_warehouse = DATA_WAREHOUSE_CONFIG or DEFAULT_CONFIG['data_warehouse']
+        if data_warehouse:
+            current_data_warehouse = {
+                'driver': data_warehouse.get('driver', current_data_warehouse.get('driver', '')),
+                'server': data_warehouse.get('server', current_data_warehouse.get('server', '')),
+                'port': int(data_warehouse.get('port', current_data_warehouse.get('port', 0))),
+                'namespace': data_warehouse.get('namespace', current_data_warehouse.get('namespace', '')),
+                'user': data_warehouse.get('user', current_data_warehouse.get('user', '')),
+                'password': data_warehouse.get('password', current_data_warehouse.get('password', ''))
+            }
+
         config = {
             'database': {
                 'server': server,
@@ -155,7 +166,7 @@ def save_config_to_file(server, port, user, password, database, output_dir, xls_
                 'password': password,
                 'database': database
             },
-            'data_warehouse': DATA_WAREHOUSE_CONFIG or DEFAULT_CONFIG['data_warehouse'],
+            'data_warehouse': current_data_warehouse,
             'paths': {
                 'output_dir': output_dir,
                 'xls_dir': xls_dir,
