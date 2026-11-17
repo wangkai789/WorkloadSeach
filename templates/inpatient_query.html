@@ -1504,6 +1504,20 @@
             } catch (err) { alert('发送失败'); }
         }
 
+        // 发送到飞书
+        async function sendToFeishu(filePath) {
+            if (!filePath) return alert('文件路径不存在');
+            try {
+                const data = await api('/api/files/feishu-deliveries', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: filePath })
+                });
+                if (data.success) alert('已发送到飞书');
+                else alert('发送失败: ' + data.message);
+            } catch (err) { alert('发送失败'); }
+        }
+
         // 删除记录
         async function deleteRecord(index, filePath) {
             if (!confirm('确定要删除该记录及对应文件吗？')) return;
@@ -1553,6 +1567,7 @@
                                 <td>
                                     <div class="history-actions">
                                         <button class="btn btn-primary btn-sm" onclick="sendToDingtalk('${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', '${(item.employee_id || '').replace(/'/g, "\\'")}')">钉钉</button>
+                                        <button class="btn btn-success btn-sm" onclick="sendToFeishu('${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">飞书</button>
                                         <button class="btn btn-info btn-sm" onclick="openPDF('${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">PDF</button>
                                         <button class="btn btn-danger btn-sm" onclick="deleteRecord(${i}, '${(item.output_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">删除</button>
                                     </div>

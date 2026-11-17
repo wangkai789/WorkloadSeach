@@ -33,6 +33,7 @@
 - `src/api/`：按业务域拆分的路由（`auth.py`、`clinic.py` 等）
 - `src/database.py`：SQL Server 查询与存储过程调用
 - `src/clinic_query.py`：门诊工作量（`Search_Doctor_OPWorkload`）
+- `src/feishu.py`：飞书机器人推送（凭证读 config.json 的 `feishu` 段，不进仓库）
 - `templates/`：页面模板，`templates/partials/` 为公共片段
 - `tests/mcp_smoke_test.py`：MCP 端到端冒烟测试
 

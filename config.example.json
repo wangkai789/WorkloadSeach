@@ -34,5 +34,11 @@
             "202601-04.15医生组出入院统计报表.xlsx",
             "202601-04.15医生组出入院统计报表(康复).xlsx"
         ]
+    },
+    "feishu": {
+        "app_id": "cli_xxxxxxxxxxxxxxxx",
+        "app_secret": "your_feishu_app_secret",
+        "receive_id_type": "open_id",
+        "default_receive_id": "ou_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
 }

@@ -40,12 +40,19 @@ DEFAULT_CONFIG = {
             "202601-04.15医生组出入院统计报表.xlsx",
             "202601-04.15医生组出入院统计报表(康复).xlsx"
         ]
+    },
+    'feishu': {
+        'app_id': '',
+        'app_secret': '',
+        'receive_id_type': 'open_id',
+        'default_receive_id': ''
     }
 }
 
 # 全局变量
 DB_CONFIG = {}
 DATA_WAREHOUSE_CONFIG = {}
+FEISHU_CONFIG = {}
 OUTPUT_DIR = ''
 XLS_DIR = ''
 PDF_DIR = ''
@@ -64,7 +71,7 @@ def get_config_file():
 
 def load_config():
     """加载配置文件"""
-    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
+    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, FEISHU_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     config_file = get_config_file()
     
     # 兼容旧版INI配置
@@ -107,6 +114,7 @@ def load_config():
             
             DB_CONFIG = config.get('database', DEFAULT_CONFIG['database'])
             DATA_WAREHOUSE_CONFIG = config.get('data_warehouse', DEFAULT_CONFIG['data_warehouse'])
+            FEISHU_CONFIG = config.get('feishu', DEFAULT_CONFIG['feishu'])
             paths = config.get('paths', DEFAULT_CONFIG['paths'])
             OUTPUT_DIR = paths.get('output_dir', DEFAULT_CONFIG['paths']['output_dir'])
             XLS_DIR = paths.get('xls_dir', DEFAULT_CONFIG['paths']['xls_dir'])
@@ -122,9 +130,10 @@ def load_config():
 
 def init_db_config():
     """初始化数据库配置"""
-    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
+    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, FEISHU_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     DB_CONFIG = DEFAULT_CONFIG['database']
     DATA_WAREHOUSE_CONFIG = DEFAULT_CONFIG['data_warehouse']
+    FEISHU_CONFIG = DEFAULT_CONFIG['feishu']
     OUTPUT_DIR = DEFAULT_CONFIG['paths']['output_dir']
     XLS_DIR = DEFAULT_CONFIG['paths']['xls_dir']
     PDF_DIR = DEFAULT_CONFIG['paths']['pdf_dir']
@@ -134,7 +143,7 @@ def init_db_config():
 
 def save_config_to_file(server, port, user, password, database, output_dir, xls_dir='', pdf_dir='', clinic_data_dir='', clinic_reports=None, data_warehouse=None):
     """保存配置文件到JSON格式"""
-    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
+    global DB_CONFIG, DATA_WAREHOUSE_CONFIG, FEISHU_CONFIG, OUTPUT_DIR, XLS_DIR, PDF_DIR, CLINIC_DATA_DIR, CLINIC_REPORTS
     config_file = get_config_file()
 
     try:
@@ -167,6 +176,8 @@ def save_config_to_file(server, port, user, password, database, output_dir, xls_
                 'database': database
             },
             'data_warehouse': current_data_warehouse,
+            # 飞书机器人凭证不由 Web 配置页维护，保存其他配置时原样保留，避免被清空
+            'feishu': FEISHU_CONFIG or DEFAULT_CONFIG['feishu'],
             'paths': {
                 'output_dir': output_dir,
                 'xls_dir': xls_dir,
@@ -202,6 +213,11 @@ def get_db_config():
 def get_data_warehouse_config():
     """获取东华数据仓库配置"""
     return DATA_WAREHOUSE_CONFIG
+
+
+def get_feishu_config():
+    """获取飞书机器人配置（app_id / app_secret / receive_id_type / default_receive_id）"""
+    return FEISHU_CONFIG or DEFAULT_CONFIG['feishu']
 
 
 def get_output_dir():

@@ -31,6 +31,7 @@ python mcp_server.py --list-tools   # 已注册工具与参数结构
 | `query_outpatient_workload` | 门诊工作量（门诊人次） | `employee_id`（必填）、`name`、`start_date`、`end_date` |
 | `query_patients` | 患者明细 | `kind`=doctor/nurse/dept/diag、`name`、`nurse_type`、`limit` |
 | `generate_workload_report` | 生成住院工作量报表文件 | `name`、`query_type`、`with_pdf` |
+| `send_file_to_feishu` | 把报表文件推送到飞书机器人（有副作用） | `file_path`、`receive_id`、`receive_id_type` |
 | `database_status` | 配置与数据库连通性检查 | 无 |
 
 约定：

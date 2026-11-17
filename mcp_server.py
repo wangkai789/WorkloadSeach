@@ -149,6 +149,28 @@ def generate_workload_report(
 
 
 @server.tool(
+    name='send_file_to_feishu',
+    description=(
+        '把服务器上已生成的报表文件（如 generate_workload_report 的 excel_path）发送到飞书机器人，'
+        '缺省发给 config.json 里配置的接收方。这是有副作用的操作，只在用户明确要求推送时调用。'
+    ),
+)
+def send_file_to_feishu(
+    file_path: str,
+    receive_id: str | None = None,
+    receive_id_type: Literal['open_id', 'user_id', 'union_id', 'email', 'chat_id'] | None = None,
+) -> dict:
+    """推送报表文件到飞书。
+
+    Args:
+        file_path: 服务器本机文件路径（.xlsx 会先尝试转 PDF 再发）。
+        receive_id: 飞书接收方 ID，缺省用配置里的 default_receive_id。
+        receive_id_type: 接收方 ID 类型，缺省用配置里的 receive_id_type。
+    """
+    return mcp_tools.send_file_to_feishu(file_path, receive_id, receive_id_type)
+
+
+@server.tool(
     name='database_status',
     description='检查数据库配置与连通性（不返回密码），排障时先调用它。',
 )

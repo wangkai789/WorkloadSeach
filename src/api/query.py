@@ -10,11 +10,13 @@ try:
     from ..database import query_data, save_history_record, load_history, QUERY_TYPES, query_patients_by_doctor, query_patients_by_nurse, query_patients_by_dept, query_patients_by_diag
     from ..export import xlsx_to_pdf
     from ..dingtalk import send_file_to_dingtalk
+    from ..feishu import send_file_to_feishu
 except ImportError:
     from config import get_output_dir
     from database import query_data, save_history_record, load_history, QUERY_TYPES, query_patients_by_doctor, query_patients_by_nurse, query_patients_by_dept, query_patients_by_diag
     from export import xlsx_to_pdf
     from dingtalk import send_file_to_dingtalk
+    from feishu import send_file_to_feishu
 
 # 导入公共装饰器与响应封装
 try:
@@ -540,6 +542,59 @@ def create_dingtalk_delivery():
         employee_id = data.get('employee_id') or session.get('user', {}).get('employee_id')
 
         success, message = send_file_to_dingtalk(file_path, xlsx_to_pdf, employee_id)
+        return ok_response(message) if success else fail_response(message)
+    except Exception as e:
+        return fail_response(f'发送失败: {str(e)}')
+
+
+@query_bp.route('/api/files/feishu-deliveries', methods=['POST'])
+@login_required
+def create_feishu_delivery():
+    """
+    发送文件到飞书（需登录）
+    ---
+    tags:
+      - 文件
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [file_path]
+          properties:
+            file_path:
+              type: string
+              description: 服务器本机的文件绝对路径
+            receive_id:
+              type: string
+              description: 飞书接收方 ID，缺省用 config.json 里的 feishu.default_receive_id
+            receive_id_type:
+              type: string
+              enum: [open_id, user_id, union_id, email, chat_id]
+              description: 接收方 ID 类型，缺省用配置里的 receive_id_type
+    responses:
+      200:
+        description: 发送成功
+      400:
+        description: 发送失败
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        file_path = data.get('file_path', '')
+        if not file_path:
+            return fail_response('缺少 file_path')
+        if not os.path.exists(file_path):
+            return fail_response(f'文件不存在: {file_path}')
+
+        success, message = send_file_to_feishu(
+            file_path,
+            xlsx_to_pdf,
+            receive_id=data.get('receive_id') or None,
+            receive_id_type=data.get('receive_id_type') or None,
+        )
         return ok_response(message) if success else fail_response(message)
     except Exception as e:
         return fail_response(f'发送失败: {str(e)}')

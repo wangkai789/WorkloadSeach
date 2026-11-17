@@ -124,7 +124,14 @@
 - 将查询结果发送到钉钉群
 - 支持 PDF 文件发送
 
-### 6. 配置管理
+### 6. 飞书推送
+
+- 通过飞书自建应用（机器人「工作量机器人」）发送报表文件
+- 凭证与接收方在 `config.json` 的 `feishu` 段配置，不写死在代码里
+- 支持 `open_id` / `user_id` / `union_id` / `email` / `chat_id` 五种接收方类型
+- 历史记录表格里点「飞书」按钮即可推送，也提供 `POST /api/files/feishu-deliveries` 接口
+
+### 7. 配置管理
 
 - 数据库连接配置
 - 输出目录配置
@@ -163,6 +170,12 @@
 |------|------|------|
 | POST | /send-to-dingtalk | 发送文件到钉钉 |
 | POST | /api/update-dingtalk-userid | 更新钉钉用户ID |
+
+### 飞书相关
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/files/feishu-deliveries | 发送文件到飞书机器人 |
 
 ### 配置相关
 
@@ -267,6 +280,13 @@ http://localhost:5003
 
 ### [clinic] - 门诊配置
 - `clinic_reports`: 门诊报表文件列表
+
+### feishu - 飞书机器人配置（JSON）
+- `app_id` / `app_secret`: 飞书自建应用凭证（也可用环境变量 `FEISHU_APP_ID` / `FEISHU_APP_SECRET` 覆盖）
+- `receive_id_type`: 接收方 ID 类型，`open_id`（默认）/ `user_id` / `union_id` / `email` / `chat_id`
+- `default_receive_id`: 默认接收方 ID
+
+> 飞书凭证不由 Web 配置页维护；在配置页保存数据库/路径设置时会原样保留 `feishu` 段。
 
 ## 更新日志
 

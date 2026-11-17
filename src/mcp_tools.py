@@ -273,6 +273,38 @@ def generate_workload_report(name, query_type, start_date=None, end_date=None, w
     return payload
 
 
+def send_file_to_feishu(file_path, receive_id=None, receive_id_type=None):
+    """把已生成的报表文件推送到飞书机器人。
+
+    接收方缺省取 config.json 中 feishu.default_receive_id；
+    receive_id_type 可选 open_id / user_id / union_id / email / chat_id。
+    """
+    _ensure_config()
+    path = str(file_path or '').strip()
+    if not path:
+        return {'ok': False, 'error': '缺少 file_path（先用 generate_workload_report 生成报表）'}
+
+    try:
+        from .feishu import send_file_to_feishu as _send
+    except ImportError:
+        from feishu import send_file_to_feishu as _send
+    try:
+        from .export import xlsx_to_pdf
+    except ImportError:
+        from export import xlsx_to_pdf
+
+    success, message = _send(
+        path,
+        xlsx_to_pdf,
+        receive_id=receive_id or None,
+        receive_id_type=receive_id_type or None,
+    )
+    payload = {'ok': bool(success), 'message': message, 'file_path': path}
+    if not success:
+        payload['error'] = message
+    return payload
+
+
 def database_status():
     """检查配置与数据库连通性，便于客户端排障。"""
     _ensure_config()

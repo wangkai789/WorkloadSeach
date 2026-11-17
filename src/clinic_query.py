@@ -131,7 +131,10 @@ def query_clinic_data(employee_id, doctor_name='', start_date=None, end_date=Non
 
 def export_clinic_to_xlsx(doctor_name, result_df):
     """导出门诊查询结果到Excel"""
-    from src.config import get_xls_dir
+    try:
+        from .config import get_xls_dir
+    except ImportError:
+        from config import get_xls_dir
 
     xls_dir = get_xls_dir()
     os.makedirs(xls_dir, exist_ok=True)
