@@ -47,7 +47,6 @@ from lark_oapi.api.im.v1 import (  # noqa: E402
 from config import get_feishu_config, load_config  # noqa: E402
 
 DATE_RE = re.compile(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})')
-EMPLOYEE_ID_RE = re.compile(r'^0\d{3,5}$')
 
 TYPE_WORDS = {
     'sp': ('主任医师', '主任', '正高'),
@@ -138,7 +137,8 @@ def parse_command(text):
     # 默认导出 PDF；明确写 excel/xlsx 时才给 Excel
     prefer_pdf = not re.search(r'excel|xlsx', body, re.IGNORECASE)
     for word in ('工作量', '查询', '一下', '请', '帮忙', '文件', '导出', '报表',
-                 'PDF', 'pdf', 'xlsx', 'Excel', 'excel', '工号', '员工编号', '姓名'):
+                 'PDF', 'pdf', 'xlsx', 'Excel', 'excel', '工号', '员工编号', '姓名',
+                 '医师', '医生', '大夫', '至', '到'):
         body = body.replace(word, ' ')
 
     query_type = None
@@ -157,15 +157,19 @@ def parse_command(text):
                 body = body.replace(word, ' ')
                 break
 
+    # 员工编号可能紧贴在中文字里（如「工号01478医师席林」），先整串抽出来
     employee_id = ''
+    match = re.search(r'(?<!\d)(0\d{3,5})(?!\d)', body)
+    if match:
+        employee_id = match.group(1)
+        body = body[:match.start()] + ' ' + body[match.end():]
+
     name = ''
     for token in re.split(r'[ \t,，、;；:：]+', body):
         token = token.strip('（）()[]【】。. ')
         if not token:
             continue
-        if EMPLOYEE_ID_RE.match(token):
-            employee_id = token
-        elif not name and not re.fullmatch(r'[A-Za-z0-9_\-]+', token):
+        if not name and not re.fullmatch(r'[A-Za-z0-9_\-]+', token):
             name = token
 
     if action is None:
