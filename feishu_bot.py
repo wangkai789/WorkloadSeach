@@ -86,6 +86,21 @@ HELP_TEXT = """工作量查询机器人使用说明
 
 日期缺省为「本月 1 日 ~ 今天」。"""
 
+LOG_DIR = os.path.join(APP_DIR, 'logs')
+LOG_FILE = os.path.join(LOG_DIR, 'feishu_bot.log')
+
+
+def _log(message):
+    """同时写 stderr 和 logs/feishu_bot.log，便于后台运行时排查。"""
+    line = f'{datetime.now():%Y-%m-%d %H:%M:%S} {message}'
+    print(line, file=sys.stderr, flush=True)
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        with open(LOG_FILE, 'a', encoding='utf-8') as handle:
+            handle.write(line + '\n')
+    except Exception:
+        pass
+
 
 # ---------------------------------------------------------------- 指令解析
 def parse_command(text):
@@ -351,6 +366,7 @@ class FeishuBot:
             text = json.loads(message.content or '{}').get('text', '')
             sender = data.event.sender
             open_id = getattr(sender.sender_id, 'open_id', '') if sender and sender.sender_id else ''
+            _log(f'收到消息 {message_id} 来自 {open_id}: {text!r}')
             if self.allowed and open_id not in self.allowed:
                 self._reply_text(message_id, '你没有使用权限，请联系管理员把 open_id 加入 allowed_open_ids。')
                 return
@@ -358,13 +374,17 @@ class FeishuBot:
             self.jobs.put((message_id, text))
         except Exception:
             traceback.print_exc()
+            _log('处理事件失败: ' + traceback.format_exc().replace('\n', ' | '))
 
     def _worker(self):
         while True:
             message_id, text = self.jobs.get()
+            started = datetime.now()
             try:
                 command = parse_command(text)
                 ok, body, file_path = execute(command)
+                _log(f'查询完成 {message_id} action={command.get("action")} ok={ok} '
+                     f'耗时={(datetime.now() - started).total_seconds():.1f}s file={file_path}')
                 prefix = '' if ok else '❌ '
                 if file_path and os.path.exists(file_path):
                     self._reply_text(message_id, prefix + body)
@@ -373,6 +393,7 @@ class FeishuBot:
                     self._reply_text(message_id, prefix + body)
             except Exception as exc:
                 traceback.print_exc()
+                _log(f'查询失败 {message_id}: {exc}')
                 self._reply_text(message_id, f'❌ 处理失败：{exc}')
             finally:
                 self.jobs.task_done()
@@ -404,16 +425,19 @@ class FeishuBot:
             request = ReplyMessageRequest.builder().message_id(message_id).request_body(body).build()
             response = self.client.im.v1.message.reply(request)
             if not response.success():
-                print(f'[feishu-bot] 回复失败: {response.code} {response.msg}', file=sys.stderr)
+                _log(f'回复失败 {message_id}: {response.code} {response.msg}')
+            else:
+                _log(f'已回复 {message_id} 类型={msg_type}')
         except Exception:
             traceback.print_exc()
+            _log('回复异常: ' + traceback.format_exc().replace('\n', ' | '))
 
     def run(self):
         handler = (lark.EventDispatcherHandler.builder('', '')
                    .register_p2_im_message_receive_v1(self.on_message)
                    .build())
         threading.Thread(target=self._worker, daemon=True).start()
-        print('[feishu-bot] 长连接启动，等待消息…', file=sys.stderr)
+        _log('长连接启动，等待消息…')
         lark.ws.Client(self.app_id, self.app_secret,
                        event_handler=handler,
                        log_level=lark.LogLevel.INFO).start()
