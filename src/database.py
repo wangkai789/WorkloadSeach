@@ -409,8 +409,8 @@ def query_patients_by_doctor(doctor_name, start_date=None, end_date=None):
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        sql = f"EXEC dhcc.dbo.{PATIENT_SP_NAME} @name=?, @datefrom=?, @dateto=?"
-        print(f"[存储过程] EXEC dhcc.dbo.{PATIENT_SP_NAME} @name=N'{doctor_name}', @datefrom='{start_date}', @dateto='{end_date}'")
+        sql = f"EXEC dhcc.dbo.Search_Patient_doctor @name=?, @datefrom=?, @dateto=?"
+        print(f"[存储过程] EXEC dhcc.dbo.Search_Patient_doctor @name=N'{doctor_name}', @datefrom='{start_date}', @dateto='{end_date}'")
         cursor.execute(sql, (doctor_name, start_date, end_date))
         columns = [col[0] for col in cursor.description] if cursor.description else []
         rows = cursor.fetchall()

@@ -7,25 +7,25 @@
         <p>工作量查询</p>
     </div>
     <nav class="sidebar-nav">
+        <div class="nav-item {{ 'active' if active_page == 'users' else '' }}" data-page="users" onclick="navGo('users')">
+            <span class="icon">👥</span>
+            <span class="text">用户管理</span>
+        </div>
         <div class="nav-item {{ 'active' if active_page == 'workload' else '' }}" data-page="workload" onclick="navGo('workload')">
             <span class="icon">📊</span>
             <span class="text">工作量查询</span>
-        </div>
-        <div class="nav-item {{ 'active' if active_page == 'history' else '' }}" data-page="history" onclick="navGo('history')">
-            <span class="icon">📋</span>
-            <span class="text">历史记录</span>
         </div>
         <div class="nav-item {{ 'active' if active_page == 'patient' else '' }}" data-page="patient" onclick="navGo('patient')">
             <span class="icon">🧑‍</span>
             <span class="text">患者查询</span>
         </div>
+        <div class="nav-item {{ 'active' if active_page == 'history' else '' }}" data-page="history" onclick="navGo('history')">
+            <span class="icon">📋</span>
+            <span class="text">历史记录</span>
+        </div>
         <div class="nav-item {{ 'active' if active_page == 'config' else '' }}" data-page="config" onclick="navGo('config')">
             <span class="icon">⚙️</span>
             <span class="text">数据库配置</span>
-        </div>
-        <div class="nav-item {{ 'active' if active_page == 'users' else '' }}" data-page="users" onclick="navGo('users')">
-            <span class="icon">👥</span>
-            <span class="text">用户管理</span>
         </div>
         <div class="nav-item {{ 'active' if active_page == 'about' else '' }}" data-page="about" onclick="navGo('about')">
             <span class="icon">ℹ️</span>

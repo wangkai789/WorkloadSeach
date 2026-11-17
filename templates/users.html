@@ -253,6 +253,81 @@
             background: #fafafa;
         }
 
+        /* 创建日期查询条件 */
+        .user-filter-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .user-filter-row input[type="date"] {
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .user-filter-row input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .user-filter-summary {
+            color: var(--text-light);
+            font-size: 13px;
+        }
+
+        /* 用户列表整表展开显示：各列内容不折行，空间不足时横向滚动 */
+        .users-table {
+            min-width: 1340px;
+        }
+        .users-table th,
+        .users-table td {
+            white-space: nowrap;
+            padding: 12px 10px;
+        }
+        .users-table .btn-sm {
+            padding: 5px 9px;
+        }
+
+        /* 查询结果框（与工作量查询页面保持一致） */
+        .result-box {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            line-height: 1.6;
+        }
+        .result-box.show { display: block; }
+        .result-box.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result-box.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .result-message { white-space: pre-line; }
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* 查询结果表格（与工作量查询页面保持一致） */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .history-table th,
+        .history-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .history-table th {
+            background: var(--bg-light);
+            font-weight: 600;
+        }
+        .history-table tbody tr:hover { background: #fafafa; }
+
         /* 加载动画 */
         .loading {
             text-align: center;
@@ -319,13 +394,23 @@
                         <span>+</span> 添加用户
                     </button>
                 </div>
+
+                <div class="user-filter-row">
+                    <label for="userCreatedStartDate">创建日期：</label>
+                    <input type="date" id="userCreatedStartDate">
+                    <span>至</span>
+                    <input type="date" id="userCreatedEndDate">
+                    <button class="btn btn-primary btn-sm" onclick="filterUsersByCreatedAt()">查询</button>
+                    <button class="btn btn-sm" onclick="resetUserFilter()" style="background:#6c757d;color:white;">重置</button>
+                    <span class="user-filter-summary" id="userFilterSummary"></span>
+                </div>
                 
                 <div class="loading" id="loading">
                     <div class="progress-bar"><div class="progress-bar-fill"></div></div>
                 </div>
                 <div id="tableContent" style="display:none;">
                     <div class="table-container">
-                        <table>
+                        <table class="users-table">
                             <thead>
                                 <tr>
                                     <th>ID</th>
@@ -335,6 +420,7 @@
                                     <th>申报职称</th>
                                     <th>统计期间</th>
                                     <th>钉钉ID</th>
+                                    <th>创建日期</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -343,7 +429,7 @@
                     </div>
                 </div>
                 <div class="empty-state" id="emptyState" style="display:none;">
-                    <p>暂无用户数据</p>
+                    <p id="emptyStateText">暂无用户数据</p>
                 </div>
             </div>
             
@@ -504,6 +590,17 @@
 
     <script>
         const $ = id => document.getElementById(id);
+
+        function formatDateRange(startDate, endDate) {
+            const cleanDate = value => {
+                const values = String(value || '')
+                    .split(/[\r\n]+/)
+                    .map(item => item.trim())
+                    .filter(Boolean);
+                return [...new Set(values)].join(' / ') || '-';
+            };
+            return `${cleanDate(startDate)} 至 ${cleanDate(endDate)}`;
+        }
         
         // 检查登录状态
         async function checkLogin() {
@@ -536,7 +633,103 @@
             window.location.href = '/login';
         }
         
-        // 加载用户列表
+        // 用户列表缓存（完整列表，按创建日期倒序）
+        let allUsers = [];
+
+        // 创建日期显示格式：yyyy-mm-dd HH:mm
+        function formatCreatedAt(value) {
+            const text = String(value ?? '').trim().replace('T', ' ');
+            if (!text) return '-';
+            return text.split('.')[0].slice(0, 16);
+        }
+
+        // 取 created_at 的日期部分，用于按创建日期查询
+        function getCreatedDate(user) {
+            return String(user.created_at || '').trim().split(' ')[0].replace(/\//g, '-');
+        }
+
+        // 按创建日期字段 created_at 倒序排列（同一时间按 id 倒序）
+        function sortUsersByCreatedAt(users) {
+            return users.slice().sort((left, right) => {
+                const leftCreated = String(left.created_at || '');
+                const rightCreated = String(right.created_at || '');
+                if (leftCreated !== rightCreated) return leftCreated < rightCreated ? 1 : -1;
+                return (Number(right.id) || 0) - (Number(left.id) || 0);
+            });
+        }
+
+        // 渲染用户表格（全面展开显示全部列）
+        function renderUserTable(users) {
+            $('loading').style.display = 'none';
+
+            if (!users.length) {
+                $('tableContent').style.display = 'none';
+                $('emptyState').style.display = 'block';
+                $('emptyStateText').textContent = allUsers.length
+                    ? '当前创建日期条件下没有用户'
+                    : '暂无用户数据';
+                return;
+            }
+
+            $('emptyState').style.display = 'none';
+            $('tableContent').style.display = 'block';
+            $('userTableBody').innerHTML = users.map(user => `
+                <tr>
+                    <td>${user.id}</td>
+                    <td>${user.employee_id || '-'}</td>
+                    <td>${user.username}</td>
+                    <td>${user.phone || '-'}</td>
+                    <td>${user.title || '-'}</td>
+                    <td>${formatDateRange(user.start_date, user.end_date)}</td>
+                    <td>${user.dingtalk_userid || '-'}</td>
+                    <td class="user-created-at">${formatCreatedAt(user.created_at)}</td>
+                    <td class="user-actions">
+                        <button class="btn btn-primary btn-sm" onclick="queryInpatient(${user.id})">住院查询</button>
+                        <button class="btn btn-sm" onclick="queryPatients('${user.employee_id}', '${user.username}', '${user.start_date || ''}', '${user.end_date || ''}', '${user.title || ''}')" style="background:#20c997;color:white;">患者查询</button>
+                        <button class="btn btn-info btn-sm" onclick="queryClinic(${user.id})">门诊查询</button>
+                        <button class="btn btn-warning btn-sm" onclick="editUser(${user.id})">编辑</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${user.username}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 按创建日期查询条件过滤并刷新用户列表
+        function applyUserFilter() {
+            const startDate = $('userCreatedStartDate').value;
+            const endDate = $('userCreatedEndDate').value;
+
+            const filtered = allUsers.filter(user => {
+                const createdDate = getCreatedDate(user);
+                if (!createdDate) return false;
+                if (startDate && createdDate < startDate) return false;
+                if (endDate && createdDate > endDate) return false;
+                return true;
+            });
+
+            $('userFilterSummary').textContent = (startDate || endDate)
+                ? `创建日期 ${startDate || '不限'} 至 ${endDate || '不限'}，共 ${filtered.length} 人`
+                : `共 ${filtered.length} 人（按创建日期倒序）`;
+
+            renderUserTable(filtered);
+        }
+
+        function filterUsersByCreatedAt() {
+            const startDate = $('userCreatedStartDate').value;
+            const endDate = $('userCreatedEndDate').value;
+            if (startDate && endDate && startDate > endDate) {
+                return alert('开始日期不能晚于结束日期');
+            }
+            applyUserFilter();
+        }
+
+        function resetUserFilter() {
+            $('userCreatedStartDate').value = '';
+            $('userCreatedEndDate').value = '';
+            applyUserFilter();
+        }
+
+        // 加载用户列表（按创建日期 created_at 倒序，全面展开显示）
         async function loadUsers() {
             $('loading').style.display = 'block';
             $('tableContent').style.display = 'none';
@@ -546,48 +739,23 @@
                 const res = await fetch('/api/users');
                 const data = await res.json();
                 
-                $('loading').style.display = 'none';
-                
                 if (!data.success) {
+                    $('loading').style.display = 'none';
                     if (data.require_login) {
                         window.location.href = '/login';
                     }
                     return;
                 }
                 
-                const users = data.users || [];
-                $('totalUsers').textContent = users.length;
+                allUsers = sortUsersByCreatedAt(data.users || []);
+                $('totalUsers').textContent = allUsers.length;
                 
                 // 计算今日注册
                 const today = new Date().toDateString();
-                const todayCount = users.filter(u => new Date(u.created_at).toDateString() === today).length;
+                const todayCount = allUsers.filter(u => new Date(u.created_at).toDateString() === today).length;
                 $('todayUsers').textContent = todayCount;
                 
-                if (users.length === 0) {
-                    $('emptyState').style.display = 'block';
-                    return;
-                }
-                
-                $('tableContent').style.display = 'block';
-                const tbody = $('userTableBody');
-                tbody.innerHTML = users.map(user => `
-                    <tr>
-                        <td>${user.id}</td>
-                        <td>${user.employee_id || '-'}</td>
-                        <td>${user.username}</td>
-                        <td>${user.phone || '-'}</td>
-                        <td>${user.title || '-'}</td>
-                        <td>${user.start_date || '-'} 至 ${user.end_date || '-'}</td>
-                        <td>${user.dingtalk_userid || '-'}</td>
-                        <td>
-                            <button class="btn btn-primary btn-sm" onclick="queryInpatient('${user.employee_id}', '${user.username}', '${user.start_date || ''}', '${user.end_date || ''}', '${user.title || ''}')">住院查询</button>
-                            <button class="btn btn-sm" onclick="queryPatients('${user.employee_id}', '${user.username}', '${user.start_date || ''}', '${user.end_date || ''}', '${user.title || ''}')" style="background:#20c997;color:white;">患者查询</button>
-                            <button class="btn btn-info btn-sm" onclick="queryClinic('${user.employee_id}', '${user.username}')">门诊查询</button>
-                            <button class="btn btn-warning btn-sm" onclick="editUser(${user.id})">编辑</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${user.username}')">删除</button>
-                        </td>
-                    </tr>
-                `).join('');
+                applyUserFilter();
             } catch (err) {
                 console.error('加载用户失败:', err);
                 $('loading').style.display = 'none';
@@ -657,27 +825,22 @@
         
         // 打开编辑用户弹窗
         async function editUser(userId) {
-            try {
-                const res = await fetch('/api/users');
-                const data = await res.json();
-                const user = data.users.find(u => u.id === userId);
-                
-                if (user) {
-                    $('userId').value = user.id;
-                    $('employeeId').value = user.employee_id || '';
-                    $('username').value = user.username;
-                    $('password').value = '';
-                    $('password').required = false;
-                    $('phone').value = user.phone || '';
-                    $('title').value = user.title || '';
-                    $('startDate').value = user.start_date || '';
-                    $('endDate').value = user.end_date || '';
-                    $('dingtalkUserid').value = user.dingtalk_userid || '';
-                    $('modalTitle').textContent = '编辑用户: ' + user.username;
-                    $('editModal').classList.add('show');
-                }
-            } catch (err) {
-                alert('加载用户信息失败');
+            const user = allUsers.find(item => item.id === userId);
+            if (user) {
+                $('userId').value = user.id;
+                $('employeeId').value = user.employee_id || '';
+                $('username').value = user.username;
+                $('password').value = '';
+                $('password').required = false;
+                $('phone').value = user.phone || '';
+                $('title').value = user.title || '';
+                $('startDate').value = user.start_date || '';
+                $('endDate').value = user.end_date || '';
+                $('dingtalkUserid').value = user.dingtalk_userid || '';
+                $('modalTitle').textContent = '编辑用户: ' + user.username;
+                $('editModal').classList.add('show');
+            } else {
+                alert('未找到该用户，请刷新后重试');
             }
         }
         
@@ -762,114 +925,184 @@
             return map[title] || 'sp';
         }
 
-        // 住院查询 - 直接查询
-        async function queryInpatient(employeeId, username, startDate, endDate, title) {
-            if (!employeeId) {
-                alert('该用户没有员工编号，无法查询');
-                return;
+        function escapeHtml(value) {
+            const entities = {
+                '&': '&' + 'amp;',
+                '<': '&' + 'lt;',
+                '>': '&' + 'gt;',
+                '"': '&' + 'quot;',
+                "'": '&' + '#39;'
+            };
+            return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
+        }
+
+        function escapeJs(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r?\n/g, ' ');
+        }
+
+        // API 请求封装（与工作量查询页面一致）
+        async function api(url, options = {}) {
+            const res = await fetch(url, options);
+            const data = await res.json();
+            if (data.require_login) {
+                if (confirm('登录已过期，是否跳转到登录页面？')) window.location.href = '/login';
+                throw new Error('请先登录');
             }
+            return data;
+        }
 
-            const queryType = getQueryType(title);
+        // 用户统计日期范围（与工作量查询页面一致：使用用户自身的统计开始/结束日期）
+        function getUserStatDateRange(user) {
+            const startDate = String(user.start_date || '').trim().split(' ')[0].replace(/\//g, '-');
+            const endDate = String(user.end_date || '').trim().split(' ')[0].replace(/\//g, '-');
+            if (!startDate || !endDate) return null;
+            return { startDate, endDate };
+        }
 
-            // 默认使用本年
-            const now = new Date();
-            const queryStart = startDate || now.getFullYear() + '-01-01';
-            const queryEnd = endDate || now.getFullYear() + '-12-31';
+        function renderResultTable(columns, rows) {
+            if (!rows.length) return '<p style="color:#666; margin-top:10px;">未查询到数据</p>';
+            return `
+                <div style="overflow-x: auto; margin-top: 10px;">
+                    <table class="history-table">
+                        <thead><tr>${columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell ?? '')}</td>`).join('')}</tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
 
-            $('inpatientQueryUser').textContent = username || employeeId;
+        // 结果框渲染：与工作量查询页面的 renderWorkloadResult 保持一致
+        function renderQueryResultBox(user, label, dateRange, data) {
+            const success = !!data.success;
+            const rows = Array.isArray(data.rows) ? data.rows : [];
+            const columns = Array.isArray(data.columns) ? data.columns : [];
+            const message = data.message || (success ? '查询完成' : '查询失败');
+            const pdfPath = data.pdf_path || '';
+            const outputFile = data.output_file || data.xlsx_path || '';
+            return `
+                <div class="result-box show ${success ? 'success' : 'error'}">
+                    <strong>${escapeHtml(user.username || user.employee_id || '-')} - ${label}</strong>
+                    <div style="margin-top: 6px;">统计日期范围：${escapeHtml(dateRange.startDate)} 至 ${escapeHtml(dateRange.endDate)}</div>
+                    <div class="result-message" style="margin-top: 6px;">${escapeHtml(message)}</div>
+                    ${success ? renderResultTable(columns, rows) : ''}
+                    ${success && (pdfPath || outputFile) ? `
+                        <div class="btn-row">
+                            <button class="btn btn-info btn-sm" onclick="openUserQueryPDF('${escapeJs(pdfPath || outputFile)}')">打开PDF</button>
+                            ${outputFile ? `<button class="btn btn-success btn-sm" onclick="openPatientOutputDir()">打开输出目录</button>` : ''}
+                        </div>` : ''}
+                </div>
+            `;
+        }
+
+        // 打开查询结果PDF（传入 pdf 或 xlsx 路径，xlsx 时按同目录 pdf 规则转换）
+        async function openUserQueryPDF(filePath) {
+            if (!filePath) return alert('文件路径不存在');
+            const pdfPath = /\.pdf$/i.test(filePath)
+                ? filePath
+                : filePath.replace(/\\xls\\/g, '\\pdf\\').replace(/\/xls\//g, '/pdf/').replace('.xlsx', '.pdf');
+            try {
+                const formData = new FormData();
+                formData.append('path', pdfPath);
+                await fetch('/api/system/pdf/open', { method: 'POST', body: formData });
+            } catch (err) {
+                alert('无法打开PDF');
+            }
+        }
+
+        function resolveUser(userId) {
+            const user = allUsers.find(item => item.id === userId);
+            if (!user) {
+                alert('未找到该用户，请刷新后重试');
+                return null;
+            }
+            return user;
+        }
+
+        // 住院查询 - 采用工作量查询页面的方法：按用户统计日期范围查询，结果框展示
+        async function queryInpatient(userId) {
+            const user = resolveUser(userId);
+            if (!user) return;
+            if (!user.username) return alert('该用户没有姓名，无法查询');
+
+            const dateRange = getUserStatDateRange(user);
+            if (!dateRange) return alert(`${user.username}缺少统计日期范围，请先编辑用户补全`);
+
+            $('inpatientQueryUser').textContent = `${user.username}（${dateRange.startDate} 至 ${dateRange.endDate}）`;
             $('inpatientResultCard').style.display = 'block';
             $('inpatientLoading').style.display = 'block';
-            $('inpatientResult').innerHTML = '';
+            $('inpatientResult').innerHTML = '<div class="result-box show success">住院查询中...</div>';
+            $('inpatientResultCard').scrollIntoView({ behavior: 'smooth' });
 
             try {
                 const formData = new FormData();
-                formData.append('employee_id', employeeId);  // 员工编号
-                formData.append('name', username || employeeId);  // 姓名
-                formData.append('query_type', queryType);
-                formData.append('start_date', queryStart);
-                formData.append('end_date', queryEnd);
+                formData.append('name', user.username);
+                formData.append('employee_id', user.employee_id || user.username);
+                formData.append('query_type', getQueryType(user.title));
+                formData.append('start_date', dateRange.startDate);
+                formData.append('end_date', dateRange.endDate);
 
-                const res = await fetch('/api/reports/inpatient-workload', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (data.success) {
-                    if (data.rows && data.rows.length > 0) {
-                        const cols = data.columns;
-                        const rows = data.rows;
-                        let html = `<p style="color:#28a745; font-weight:bold; margin-bottom:10px;">查询成功，共 ${rows.length} 条记录（${queryStart} 至 ${queryEnd}）</p>`;
-                        html += `<div style="max-height:400px; overflow:auto;">
-                            <table style="width:100%; border-collapse:collapse;">
-                                <thead style="background:#f8f9fa;">
-                                    <tr>`;
-                        for (let i = 0; i < cols.length; i++) {
-                            html += `<th style="padding:10px; border:1px solid #ddd; text-align:left;">${cols[i]}</th>`;
-                        }
-                        html += `</tr></thead><tbody>`;
-                        rows.forEach((row) => {
-                            html += '<tr>';
-                            for (let i = 0; i < row.length; i++) {
-                                html += `<td style="padding:8px; border:1px solid #ddd;">${row[i] ?? ''}</td>`;
-                            }
-                            html += '</tr>';
-                        });
-                        html += '</tbody></table></div>';
-                        $('inpatientResult').innerHTML = html;
-                    } else {
-                        $('inpatientResult').innerHTML = '<p style="color:#666;">未查询到数据</p>';
-                    }
-                } else {
-                    $('inpatientResult').innerHTML = `<p style="color:#dc3545;">查询失败: ${data.message || '未知错误'}</p>`;
-                }
+                const data = await api('/api/reports/inpatient-workload', { method: 'POST', body: formData });
+                $('inpatientResult').innerHTML = renderQueryResultBox(user, '住院查询', dateRange, data);
             } catch (err) {
-                console.error('查询失败:', err);
-                $('inpatientResult').innerHTML = '<p style="color:#dc3545;">查询失败，请稍后重试</p>';
+                console.error('住院查询失败:', err);
+                $('inpatientResult').innerHTML = '<div class="result-box show error">住院查询请求失败，请稍后重试</div>';
             } finally {
                 $('inpatientLoading').style.display = 'none';
             }
         }
 
-        // 门诊查询
-        async function queryClinic(employeeId, username) {
-            if (!username) {
-                alert('该用户没有姓名，无法查询');
-                return;
-            }
+        // 门诊查询 - 采用工作量查询页面的方法：同样传入用户统计日期范围
+        async function queryClinic(userId) {
+            const user = resolveUser(userId);
+            if (!user) return;
+            if (!user.username) return alert('该用户没有姓名，无法查询');
+            if (!user.employee_id) return alert('该用户没有员工编号，无法查询门诊数据');
 
-            $('clinicQueryUser').textContent = username;
+            const dateRange = getUserStatDateRange(user);
+            if (!dateRange) return alert(`${user.username}缺少统计日期范围，请先编辑用户补全`);
+
+            $('clinicQueryUser').textContent = `${user.username}（${dateRange.startDate} 至 ${dateRange.endDate}）`;
             $('clinicResultCard').style.display = 'block';
             $('clinicLoading').style.display = 'block';
-            $('clinicResult').innerHTML = '';
+            $('clinicResult').innerHTML = '<div class="result-box show success">门诊查询中...</div>';
+            $('clinicResultCard').scrollIntoView({ behavior: 'smooth' });
 
             try {
                 const formData = new FormData();
-                formData.append('doctor_name', username);
-                formData.append('employee_id', employeeId || '');
+                formData.append('doctor_name', user.username);
+                formData.append('employee_id', user.employee_id);
+                formData.append('start_date', dateRange.startDate);
+                formData.append('end_date', dateRange.endDate);
 
-                const res = await fetch('/api/reports/outpatient-workload', { method: 'POST', body: formData });
-                const data = await res.json();
+                console.info('[门诊查询] 页面请求存储过程 Search_Doctor_OPWorkload', {
+                    doctorName: user.username,
+                    dateFrom: dateRange.startDate,
+                    dateTo: dateRange.endDate
+                });
+                const data = await api('/api/reports/outpatient-workload', { method: 'POST', body: formData });
 
-                if (data.success) {
-                    if (data.data && data.data.length > 0) {
-                        let html = `<p style="color:#28a745; font-weight:bold; margin-bottom:10px;">查询成功，共 ${data.total} 条记录</p>`;
-                        html += `<div style="max-height:400px; overflow:auto;">
-                            <table style="width:100%; border-collapse:collapse;">
-                                <thead style="background:#f8f9fa;">
-                                    <tr><th>期间</th><th>医师姓名</th><th>门诊人次</th></tr>
-                                </thead><tbody>`;
-                        data.data.forEach(row => {
-                            html += `<tr><td>${row['期间'] || '-'}</td><td>${row['医师姓名'] || '-'}</td><td>${row['门诊人次'] || 0}</td></tr>`;
-                        });
-                        html += '</tbody></table></div>';
-                        $('clinicResult').innerHTML = html;
-                    } else {
-                        $('clinicResult').innerHTML = '<p style="color:#666;">未查询到数据</p>';
-                    }
-                } else {
-                    $('clinicResult').innerHTML = `<p style="color:#dc3545;">查询失败: ${data.message || '未知错误'}</p>`;
-                }
+                // 门诊接口返回记录列表，统一转换为与住院查询一致的 columns/rows 结构
+                const rows = (data.data || []).map(row => [
+                    row['期间'] ?? '-',
+                    row['医师姓名'] ?? '-',
+                    row['门诊人次'] ?? 0
+                ]);
+                $('clinicResult').innerHTML = renderQueryResultBox(user, '门诊查询', dateRange, {
+                    success: data.success,
+                    message: data.message,
+                    pdf_path: data.pdf_path,
+                    xlsx_path: data.xlsx_path,
+                    columns: ['期间', '医师姓名', '门诊人次'],
+                    rows: rows
+                });
             } catch (err) {
                 console.error('门诊查询失败:', err);
-                $('clinicResult').innerHTML = '<p style="color:#dc3545;">查询失败，请稍后重试</p>';
+                $('clinicResult').innerHTML = '<div class="result-box show error">门诊查询请求失败，请稍后重试</div>';
             } finally {
                 $('clinicLoading').style.display = 'none';
             }

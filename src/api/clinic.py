@@ -79,8 +79,10 @@ def create_outpatient_workload_report():
         end_date = request.form.get('end_date', '').strip()
         if not doctor_name:
             return fail_response('请输入医生姓名')
+        if not employee_id:
+            return fail_response('未找到员工编号，无法查询门诊数据')
 
-        result, total = query_clinic_data(doctor_name, start_date, end_date)
+        result, total = query_clinic_data(employee_id, doctor_name, start_date, end_date)
         if result is None:
             return fail_response(total)
 

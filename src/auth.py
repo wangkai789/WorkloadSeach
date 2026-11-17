@@ -229,12 +229,15 @@ def get_user_by_id(user_id):
 
 
 def get_all_users():
-    """获取所有用户列表"""
+    """获取所有用户列表（按创建日期字段 created_at 倒序，同一时间按 id 倒序）"""
     try:
         conn = sqlite3.connect(get_users_db())
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute('SELECT id, employee_id, username, phone, title, start_date, end_date, dingtalk_userid, created_at FROM users ORDER BY id DESC')
+        cursor.execute(
+            'SELECT id, employee_id, username, phone, title, start_date, end_date, '
+            'dingtalk_userid, created_at FROM users ORDER BY created_at DESC, id DESC'
+        )
         users = cursor.fetchall()
         conn.close()
         return [dict(user) for user in users]

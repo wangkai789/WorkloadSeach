@@ -297,9 +297,9 @@
             color: var(--text-light);
             font-size: 13px;
         }
+        /* 用户列表全面展开：不限制高度、不做内部纵向滚动，整表随页面展开显示 */
         .workload-user-table-wrap {
-            max-height: 360px;
-            overflow: auto;
+            overflow-x: auto;
             border: 1px solid var(--border);
             border-radius: 8px;
         }
@@ -316,14 +316,12 @@
             white-space: nowrap;
         }
         .workload-user-table th {
-            position: sticky;
-            top: 0;
             background: var(--bg-light);
             font-weight: 600;
-            z-index: 1;
         }
         .workload-user-table tbody tr:hover { background: #fafafa; }
         .workload-user-table .user-name { font-weight: 600; color: var(--primary); }
+        .workload-user-table .user-created-at { color: var(--text-light); white-space: nowrap; }
         .workload-user-empty { text-align: center; color: #999; padding: 28px; }
 
         /* 统计卡片 */
@@ -401,8 +399,6 @@
                         <div class="progress-bar"><div class="progress-bar-fill"></div></div>
                         <p style="margin-top: 10px; color: #666;">查询中，请稍候...</p>
                     </div>
-
-                    <div id="workloadResultBox"></div>
                 </div>
 
                 <div class="card">
@@ -414,6 +410,8 @@
                         <div class="workload-user-empty">正在加载用户列表...</div>
                     </div>
                 </div>
+
+                <div id="workloadResultBox"></div>
             </div>
 
             <!-- 历史记录页面 -->
@@ -995,17 +993,36 @@
             return map[title] || 'sp';
         }
 
+        // 创建日期统一格式化为 yyyy-mm-dd HH:mm（created_at 原值为 yyyy-mm-dd HH:mm:ss）
+        function formatCreatedAt(value) {
+            const text = String(value ?? '').trim().replace('T', ' ');
+            if (!text) return '-';
+            return text.split('.')[0].slice(0, 16);
+        }
+
+        // 按创建日期字段 created_at 倒序排列，同一时间按 id 倒序
+        function sortUsersByCreatedAt(users) {
+            return users.slice().sort((left, right) => {
+                const leftCreated = String(left.created_at || '');
+                const rightCreated = String(right.created_at || '');
+                if (leftCreated !== rightCreated) return leftCreated < rightCreated ? 1 : -1;
+                return (Number(right.id) || 0) - (Number(left.id) || 0);
+            });
+        }
+
         function renderWorkloadUsers(users, summaryText) {
             const list = $('workloadUserList');
             const summary = $('workloadUserSummary');
-            summary.textContent = summaryText || `共 ${users.length} 人`;
+            const sortedUsers = sortUsersByCreatedAt(users || []);
+            summary.textContent = summaryText || `共 ${sortedUsers.length} 人`;
 
-            if (!users.length) {
+            if (!sortedUsers.length) {
+                window.currentWorkloadRenderedUsers = [];
                 list.innerHTML = '<div class="workload-user-empty">暂无符合条件的用户</div>';
                 return;
             }
 
-            window.currentWorkloadRenderedUsers = users;
+            window.currentWorkloadRenderedUsers = sortedUsers;
             window.selectedWorkloadUsers = [];
             list.innerHTML = `
                 <div class="workload-user-table-wrap">
@@ -1017,10 +1034,11 @@
                                 <th>姓名</th>
                                 <th>职称</th>
                                 <th>统计日期范围</th>
+                                <th>创建日期</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${users.map((user, index) => `
+                            ${sortedUsers.map((user, index) => `
                                 <tr>
                                     <td>
                                         <input type="checkbox" class="workload-user-checkbox" onchange="toggleWorkloadUserSelection(${index}, this.checked)">
@@ -1029,6 +1047,7 @@
                                     <td class="user-name">${escapeHtml(user.username || '-')}</td>
                                     <td>${escapeHtml(user.title || '-')}</td>
                                     <td>${escapeHtml(user.start_date || '-')} 至 ${escapeHtml(user.end_date || '-')}</td>
+                                    <td class="user-created-at">${escapeHtml(formatCreatedAt(user.created_at))}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -1052,8 +1071,9 @@
                 }
 
                 window.workloadUsers = data.users || [];
-                list.innerHTML = '<div class="workload-user-empty">请选择时间段后查询用户</div>';
-                summary.textContent = `已加载 ${window.workloadUsers.length} 人`;
+                // 加载完成后立即按创建日期倒序全面展开显示整个用户列表
+                renderWorkloadUsers(window.workloadUsers, `共 ${window.workloadUsers.length} 人（按创建日期倒序）`);
+                $('workloadResultBox').innerHTML = '';
             } catch (err) {
                 console.error('加载工作量用户列表失败:', err);
                 list.innerHTML = '<div class="workload-user-empty">用户列表加载失败</div>';
@@ -1083,12 +1103,19 @@
             if (!startDate || !endDate) return;
             if (startDate > endDate) return alert('开始日期不能晚于结束日期');
 
+            // 按用户创建日期字段 created_at 过滤用户列表
             const users = window.workloadUsers || [];
             const filtered = users.filter(user => {
-                const userEndDate = normalizeDateOnly(user.end_date);
-                return userEndDate && userEndDate >= startDate && userEndDate <= endDate;
+                const createdDate = normalizeDateOnly(user.created_at);
+                return createdDate && createdDate >= startDate && createdDate <= endDate;
             });
-            renderWorkloadUsers(filtered, `统计结束日期 ${startDate} 至 ${endDate}，共 ${filtered.length} 人`);
+
+            // 该创建日期范围内没有用户时回退展示全部用户，避免用户列表空白
+            if (!filtered.length && users.length) {
+                renderWorkloadUsers(users, `创建日期 ${startDate} 至 ${endDate} 内没有用户，已显示全部 ${users.length} 人（按创建日期倒序）`);
+            } else {
+                renderWorkloadUsers(filtered, `创建日期 ${startDate} 至 ${endDate}，共 ${filtered.length} 人`);
+            }
             $('workloadResultBox').innerHTML = '';
         }
 
@@ -1245,6 +1272,11 @@
                     formData.append('start_date', startDate);
                     formData.append('end_date', endDate);
 
+                    console.info('[门诊查询] 页面请求存储过程 Search_Doctor_OPWorkload', {
+                        doctorName: user.username || '',
+                        dateFrom: startDate,
+                        dateTo: endDate
+                    });
                     const data = await api('/api/reports/outpatient-workload', { method: 'POST', body: formData });
                     const rows = (data.data || []).map(row => [row['期间'] || '-', row['医师姓名'] || '-', row['门诊人次'] || 0]);
                     blocks.push(`
