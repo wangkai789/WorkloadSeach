@@ -223,6 +223,9 @@ cd d:/codebuddy/业务报表
 python web_app_inpatient.py
 ```
 
+也可以双击仓库根目录的 `start_web.bat`（用 `.venv` 里的 Python 启动，端口 5003）。
+端口被占用时可用环境变量临时切换：`set DHCC_PORT=5004 && python web_app_inpatient.py`。
+
 ### 方式二：打包运行
 
 ```bash

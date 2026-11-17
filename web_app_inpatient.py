@@ -23,15 +23,16 @@ from src.auth import init_users_db, create_default_admin
 from src.api import ALL_BLUEPRINTS
 from src.api.history import set_history_store
 
-app = Flask(__name__)
+# 模板目录在构造时就固定为绝对路径：直接以脚本方式运行（python web_app_inpatient.py）时
+# Flask 的 root_path 可能落到相对路径，导致 TemplateNotFound
+_TEMPLATE_DIR = TEMPLATES_DIR if getattr(sys, 'frozen', False) and os.path.exists(TEMPLATES_DIR) \
+    else os.path.join(APP_DIR, 'templates')
+app = Flask(__name__, template_folder=_TEMPLATE_DIR)
 app.secret_key = 'dhcc_inpatient_query_2024_secret_key'  # Session密钥
 
-# 路径配置
-if getattr(sys, 'frozen', False):
-    if os.path.exists(TEMPLATES_DIR):
-        app.template_folder = TEMPLATES_DIR
-    else:
-        app.template_folder = os.path.join(APP_DIR, 'templates')
+print(f"[模板] root_path={app.root_path!r} template_folder={app.template_folder!r} "
+      f"exists={os.path.isdir(app.template_folder)} cwd={os.getcwd()!r}",
+      file=sys.stderr, flush=True)
 
 # Swagger UI（/apidocs/）：仅收录 /api/ 下的 JSON 接口，页面路由不纳入文档
 swagger_config = {
@@ -74,6 +75,7 @@ for bp in ALL_BLUEPRINTS:
 
 if __name__ == '__main__':
     db_config = get_db_config()
+    port = int(os.environ.get('DHCC_PORT', 5003))  # 端口被占用时可用环境变量临时切换
     print("=" * 50)
     print(f"东华住院工作量查询 Web服务 v{VERSION}")
     print(f"服务器: {db_config.get('server', 'N/A')}")
@@ -82,4 +84,4 @@ if __name__ == '__main__':
     print("=" * 50)
     print("默认账户: admin / admin123")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=5003, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)
