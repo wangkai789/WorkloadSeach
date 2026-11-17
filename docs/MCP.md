@@ -62,6 +62,9 @@ python mcp_server.py --list-tools   # 已注册工具与参数结构
 
 接入后工具名前缀为 `mcp__dhcc__`，例如 `mcp__dhcc__query_inpatient_workload`。
 
+> `command` 里的解释器路径只是示例（本机 `.venv`），换机器时改成实际安装了 `mcp` 的 Python 解释器；
+> `args` 必须指向真实存在的 `mcp_server.py`，`cwd` 设为仓库根目录。
+
 ### 3.2 Claude Desktop
 
 `claude_desktop_config.json`：
