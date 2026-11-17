@@ -81,8 +81,9 @@ HELP_TEXT = """工作量查询机器人使用说明
    患者 席林 2026-01-01 2026-10-18
    可选维度：科室 / 诊断 / 护士，例如「患者 科室 针灸科 2026-01-01 2026-10-18」
 
-4) 需要 Excel/PDF 时，在命令末尾加「文件」
+4) 需要报表文件时，在命令末尾加「文件」，默认导出 PDF
    门诊 01478 席林 2026-01-01 2026-10-18 文件
+   想要 Excel 就写 excel：门诊 01478 席林 2026-01-01 2026-10-18 excel
 
 日期缺省为「本月 1 日 ~ 今天」。"""
 
@@ -134,6 +135,8 @@ def parse_command(text):
             body = body[:position] + ' ' + body[position + len(word):]
 
     want_file = any(word in body for word in ('文件', '导出', '报表', 'PDF', 'pdf', 'xlsx', 'Excel', 'excel'))
+    # 默认导出 PDF；明确写 excel/xlsx 时才给 Excel
+    prefer_pdf = not re.search(r'excel|xlsx', body, re.IGNORECASE)
     for word in ('工作量', '查询', '一下', '请', '帮忙', '文件', '导出', '报表',
                  'PDF', 'pdf', 'xlsx', 'Excel', 'excel', '工号', '员工编号', '姓名'):
         body = body.replace(word, ' ')
@@ -177,18 +180,18 @@ def parse_command(text):
         return {'action': 'patients', 'name': name, 'patient_kind': patient_kind,
                 'start_date': dates[0] if dates else None,
                 'end_date': dates[1] if len(dates) > 1 else None,
-                'want_file': want_file}
+                'want_file': want_file, 'prefer_pdf': prefer_pdf}
 
     if action == 'outpatient':
         return {'action': 'outpatient', 'employee_id': employee_id, 'name': name,
                 'start_date': dates[0] if dates else None,
                 'end_date': dates[1] if len(dates) > 1 else None,
-                'want_file': want_file}
+                'want_file': want_file, 'prefer_pdf': prefer_pdf}
 
     return {'action': 'inpatient', 'name': name, 'query_type': query_type or 'sp',
             'start_date': dates[0] if dates else None,
             'end_date': dates[1] if len(dates) > 1 else None,
-            'want_file': want_file}
+            'want_file': want_file, 'prefer_pdf': prefer_pdf}
 
 
 def _resolve_period(start_date, end_date):
@@ -197,6 +200,21 @@ def _resolve_period(start_date, end_date):
         start_date or today.replace(day=1).strftime('%Y-%m-%d'),
         end_date or today.strftime('%Y-%m-%d'),
     )
+
+
+def _pdf_or_xlsx(xlsx_path, prefer_pdf=True):
+    """默认导出 PDF：转换成功就用 PDF，失败则退回 Excel。"""
+    if not xlsx_path or not prefer_pdf:
+        return xlsx_path
+    try:
+        from export import xlsx_to_pdf
+
+        pdf_path = xlsx_to_pdf(xlsx_path)
+        if pdf_path and os.path.exists(pdf_path):
+            return pdf_path
+    except Exception as exc:
+        _log(f'PDF 转换失败，改为发送 Excel: {exc}')
+    return xlsx_path
 
 
 # ---------------------------------------------------------------- 结果格式化
@@ -277,7 +295,8 @@ def execute(command):
 
         file_path = None
         if want_file:
-            file_path = export_clinic_to_xlsx(name or employee_id, result_df)
+            file_path = _pdf_or_xlsx(export_clinic_to_xlsx(name or employee_id, result_df),
+                                     command.get('prefer_pdf', True))
         return True, text, file_path
 
     if action == 'inpatient':
@@ -295,7 +314,7 @@ def execute(command):
             return False, f'住院查询失败：{result}', None
 
         text = format_inpatient(name, query_type, start_date, end_date, list(columns), rows)
-        return True, text, (result if want_file else None)
+        return True, text, (_pdf_or_xlsx(result, command.get('prefer_pdf', True)) if want_file else None)
 
     # 患者明细
     from database import (
@@ -330,7 +349,7 @@ def execute(command):
     text = format_patients(kind_name, name, start_date, end_date, list(columns), rows)
     if not rows and error:
         text += f'\n（{error}）'
-    return True, text, (path if want_file else None)
+    return True, text, (_pdf_or_xlsx(path, command.get('prefer_pdf', True)) if want_file else None)
 
 
 # ---------------------------------------------------------------- 飞书交互
