@@ -340,8 +340,11 @@ def _save_query_excel(columns, rows, name, type_name, start_date, end_date):
     return output_file
 
 
-def query_data(name, query_type, start_date=None, end_date=None):
-    """执行查询"""
+def query_data(name, query_type, start_date=None, end_date=None, save_excel=True):
+    """执行查询
+
+    save_excel=False 时只返回数据、不生成 Excel 文件（供 MCP 等只读调用方使用）。
+    """
     import pyodbc
 
     type_name, proc_name = QUERY_TYPES.get(query_type, (query_type, ''))
@@ -375,13 +378,15 @@ def query_data(name, query_type, start_date=None, end_date=None):
     if error:
         return None, None, error
 
-    # 保存到Excel
-    output_file = _save_query_excel(columns, rows, name, type_name, start_date, end_date)
+    # 保存到Excel（save_excel=False 时跳过，避免只读查询产生文件）
+    output_file = None
+    if save_excel:
+        output_file = _save_query_excel(columns, rows, name, type_name, start_date, end_date)
 
     return columns, rows, output_file
 
 
-def query_patients_by_doctor(doctor_name, start_date=None, end_date=None):
+def query_patients_by_doctor(doctor_name, start_date=None, end_date=None, save_excel=True):
     """
     按医生姓名查询患者列表
     
@@ -419,7 +424,9 @@ def query_patients_by_doctor(doctor_name, start_date=None, end_date=None):
         if not rows:
             return columns, [], None, f"未找到医生 [{doctor_name}] 的患者数据"
 
-        output_file = _save_query_excel(columns, rows, doctor_name, '医生患者查询', start_date, end_date)
+        output_file = None
+        if save_excel:
+            output_file = _save_query_excel(columns, rows, doctor_name, '医生患者查询', start_date, end_date)
         return columns, rows, output_file, None
 
     except pyodbc.Error as e:
@@ -431,7 +438,7 @@ def query_patients_by_doctor(doctor_name, start_date=None, end_date=None):
         return None, None, None, f"查询错误: {str(e)}"
 
 
-def query_patients_by_nurse(nurse_name, start_date=None, end_date=None, query_type=None):
+def query_patients_by_nurse(nurse_name, start_date=None, end_date=None, query_type=None, save_excel=True):
     """
     按护士姓名查询患者列表
     
@@ -472,7 +479,9 @@ def query_patients_by_nurse(nurse_name, start_date=None, end_date=None, query_ty
         if not rows:
             return columns, [], None, f"未找到{type_name} [{nurse_name}] 的患者数据"
 
-        output_file = _save_query_excel(columns, rows, nurse_name, f'{type_name}患者查询', start_date, end_date)
+        output_file = None
+        if save_excel:
+            output_file = _save_query_excel(columns, rows, nurse_name, f'{type_name}患者查询', start_date, end_date)
         return columns, rows, output_file, None
 
     except pyodbc.Error as e:
@@ -484,7 +493,7 @@ def query_patients_by_nurse(nurse_name, start_date=None, end_date=None, query_ty
         return None, None, None, f"查询错误: {str(e)}"
 
 
-def query_patients_by_dept(dept_name, start_date=None, end_date=None):
+def query_patients_by_dept(dept_name, start_date=None, end_date=None, save_excel=True):
     """
     按科室查询患者列表
 
@@ -522,7 +531,9 @@ def query_patients_by_dept(dept_name, start_date=None, end_date=None):
         if not rows:
             return columns, [], None, f"未找到科室 [{dept_name}] 的患者数据"
 
-        output_file = _save_query_excel(columns, rows, dept_name, '科室患者查询', start_date, end_date)
+        output_file = None
+        if save_excel:
+            output_file = _save_query_excel(columns, rows, dept_name, '科室患者查询', start_date, end_date)
         return columns, rows, output_file, None
 
     except pyodbc.Error as e:
@@ -534,7 +545,7 @@ def query_patients_by_dept(dept_name, start_date=None, end_date=None):
         return None, None, None, f"查询错误: {str(e)}"
 
 
-def query_patients_by_diag(diag_name, start_date=None, end_date=None):
+def query_patients_by_diag(diag_name, start_date=None, end_date=None, save_excel=True):
     """
     按诊断查询患者列表
 
@@ -572,7 +583,9 @@ def query_patients_by_diag(diag_name, start_date=None, end_date=None):
         if not rows:
             return columns, [], None, f"未找到诊断 [{diag_name}] 的患者数据"
 
-        output_file = _save_query_excel(columns, rows, diag_name, '诊断患者查询', start_date, end_date)
+        output_file = None
+        if save_excel:
+            output_file = _save_query_excel(columns, rows, diag_name, '诊断患者查询', start_date, end_date)
         return columns, rows, output_file, None
 
     except pyodbc.Error as e:

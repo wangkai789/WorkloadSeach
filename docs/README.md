@@ -217,6 +217,20 @@ pyinstaller 东华住院工作量查询.spec
 # 运行 dist/东华住院工作量查询.exe
 ```
 
+### 方式三：MCP 服务（可选）
+
+系统同时提供 MCP（Model Context Protocol）入口，供 DSH、Claude Desktop 等客户端调用查询能力：
+
+```bash
+pip install -r requirements-mcp.txt
+python mcp_server.py --status      # 检查配置与数据库连通性
+python mcp_server.py               # 以 stdio 方式启动 MCP 服务
+```
+
+提供 `query_inpatient_workload`、`query_outpatient_workload`、`query_patients`、
+`generate_workload_report`、`database_status` 五个工具，与 Web 端共用同一套查询逻辑和配置。
+详见 [MCP.md](MCP.md)。
+
 ## 访问地址
 
 ```

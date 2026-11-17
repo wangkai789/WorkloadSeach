@@ -28,7 +28,19 @@
 ## 项目结构速览
 
 - `web_app_inpatient.py`：Flask 入口
+- `mcp_server.py`：MCP 服务入口（stdio），工具的注册与参数 schema 在这
+- `src/mcp_tools.py`：MCP 工具的业务实现（只包装查询函数，不依赖 mcp SDK）
 - `src/api/`：按业务域拆分的路由（`auth.py`、`clinic.py` 等）
 - `src/database.py`：SQL Server 查询与存储过程调用
 - `src/clinic_query.py`：门诊工作量（`Search_Doctor_OPWorkload`）
 - `templates/`：页面模板，`templates/partials/` 为公共片段
+- `tests/mcp_smoke_test.py`：MCP 端到端冒烟测试
+
+## MCP 相关约定
+
+- stdio 传输下 **stdout 只承载 JSON-RPC**：业务代码里的 `print` 已统一改道 stderr，
+  新增代码不得直接往 stdout 打印；需要日志用 `print(..., file=sys.stderr)`。
+- 查询函数默认不落盘：`query_data`、`query_patients_by_*` 都支持 `save_excel=False`，
+  MCP 侧只有 `generate_workload_report` 会写 Excel/PDF。
+- 改完 `mcp_server.py` 或 `src/mcp_tools.py` 后跑一遍 `python tests/mcp_smoke_test.py`。
+
