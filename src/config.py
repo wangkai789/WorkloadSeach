@@ -45,7 +45,8 @@ DEFAULT_CONFIG = {
         'app_id': '',
         'app_secret': '',
         'receive_id_type': 'open_id',
-        'default_receive_id': ''
+        'default_receive_id': '',
+        'allowed_open_ids': []
     }
 }
 

@@ -39,6 +39,7 @@
         "app_id": "cli_xxxxxxxxxxxxxxxx",
         "app_secret": "your_feishu_app_secret",
         "receive_id_type": "open_id",
-        "default_receive_id": "ou_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        "default_receive_id": "ou_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "allowed_open_ids": []
     }
 }

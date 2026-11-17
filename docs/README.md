@@ -130,6 +130,7 @@
 - 凭证与接收方在 `config.json` 的 `feishu` 段配置，不写死在代码里
 - 支持 `open_id` / `user_id` / `union_id` / `email` / `chat_id` 五种接收方类型
 - 历史记录表格里点「飞书」按钮即可推送，也提供 `POST /api/files/feishu-deliveries` 接口
+- **机器人对话查询**：飞书里直接给机器人发指令即可查询，详见 [feishu-bot.md](feishu-bot.md)
 
 ### 7. 配置管理
 
